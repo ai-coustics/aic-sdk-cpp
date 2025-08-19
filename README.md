@@ -17,15 +17,6 @@ To use the SDK, you'll need a license key. Contact our team to receive your time
 
 Once you have your license key, set it as an environment variable or pass it directly to the SDK initialization functions.
 
-### Download the SDK
-
-Get started by downloading the SDK binaries from the [releases page](https://github.com/ai-coustics/aic-sdk-c/releases). We provide:
-
-- **Static libraries** (`.a`, `.lib`) for linking directly into your application
-- **Dynamic libraries** (`.so`, `.dll`, `.dylib`) for runtime loading
-- **Multiple platforms**: Linux, Windows, macOS
-- **Multiple architectures**: x86_64, ARM64
-
 ### Language Bindings
 
 While this repository contains the C++ wrapper, we offer convenient wrappers for popular programming languages:
@@ -33,7 +24,6 @@ While this repository contains the C++ wrapper, we offer convenient wrappers for
 | Language | Repository | Description |
 |----------|------------|-------------|
 | **C** | [`aic-sdk-c`](https://github.com/ai-coustics/aic-sdk-c) | Core C interface and foundation library |
-| **C++** | [`aic-sdk-cpp`](https://github.com/ai-coustics/aic-sdk-cpp) | Modern C++ wrapper with RAII and type safety |
 | **Node.js** | [`aic-sdk-node`](https://github.com/ai-coustics/aic-sdk-node) | JavaScript/TypeScript bindings for Node.js |
 | **Python** | [`aic-sdk-py`](https://github.com/ai-coustics/aic-sdk-py) | Pythonic interface |
 | **Rust** | [`aic-sdk-rs`](https://github.com/ai-coustics/aic-sdk-rs) | Safe Rust Bindings |
@@ -55,8 +45,8 @@ The Demo Plugin provides:
 
 ## 📚 Documentation
 
-- **[SDK Reference](sdk-reference.md)** - Complete API documentation and function reference
 - **[Basic Example](example/main.cpp)** - Sample code and integration patterns
+- **[CMake Integration Guide](example/CMakeLists.txt)** - Build configuration and SDK integration
 
 ## 💡 Example Usage
 
@@ -86,6 +76,7 @@ int main() {
     std::vector<float> audio_buffer_left(480, 0.0f);
     std::vector<float> audio_buffer_right(480, 0.0f);
     std::vector<float*> audio_buffer_planar = {audio_buffer_left.data(), audio_buffer_right.data()};
+
     model->process_planar(audio_buffer_planar.data(), 2, 480);
 
     return 0;
@@ -128,8 +119,7 @@ export AIC_SDK_LICENSE="your_license_key_here"
 
 Need help? We're here to assist:
 
-- **Documentation**: [Complete SDK Reference](sdk-reference.md)
-- **Examples**: [Sample Code](example/main.cpp)
+- **Example**: [Sample Code](example/main.cpp) and [CMake Configuration](example/CMakeLists.txt)
 - **Issues**: [GitHub Issues](https://github.com/ai-coustics/aic-sdk-cpp/issues)
 - **Technical Support**: [info@ai-coustics.com](mailto:info@ai-coustics.com)
 
