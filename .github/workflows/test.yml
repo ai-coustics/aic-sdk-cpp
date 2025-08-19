@@ -1,0 +1,35 @@
+name: Build and Run Example
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "*"
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-run:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake "-DAIC_SDK_CPP_LOCAL_PATH=." -B build ./example
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Run Example (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./build/my_app
+
+      - name: Run Example (Windows)
+        if: runner.os == 'Windows'
+        run: .\build\Debug\my_app.exe
