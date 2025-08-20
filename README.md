@@ -17,7 +17,7 @@ To use the SDK, you'll need a license key. Contact our team to receive your time
 
 Once you have your license key, set it as an environment variable or pass it directly to the SDK initialization functions.
 
-### ⚙️ CMake Integration
+### CMake Integration
 
 Whith this CMake example you can add the SDK to your application and let CMake download all necessary files automatically:
 
@@ -37,7 +37,7 @@ FetchContent_MakeAvailable(aic_sdk)
 target_link_libraries(my_app PRIVATE aic-sdk)
 ```
 
-### 📝 Example Usage
+### Example Usage
 
 Here's a simple example showing the core SDK workflow. Error handling is omitted for clarity - see the [complete example](example/main.cpp) for production-ready code:
 
@@ -88,13 +88,13 @@ cmake --build build -j
 ./build/my_app
 ```
 
-## 📚 Documentation
+## 🆘 Support & Resources
 
+### Documentation
 - **[Basic Example](example/main.cpp)** - Sample code and integration patterns
 - **[CMake Integration Guide](example/CMakeLists.txt)** - Build configuration and SDK integration
 
-## 🌐 Looking for Other Languages?
-
+### Looking for Other Languages?
 The ai-coustics Speech Enhancement SDK is available in multiple programming languages to fit your development needs:
 
 | Language | Repository | Description |
@@ -107,14 +107,11 @@ The ai-coustics Speech Enhancement SDK is available in multiple programming lang
 
 All SDKs provide the same core functionality with language-specific optimizations and idioms.
 
-## 🎧 Demo Plugin
-
+### Demo Plugin
 Experience our speech enhancement models firsthand with our [Demo Plugin](https://github.com/ai-coustics/aic-sdk-plugin) - a complete audio plugin that showcases all available models while serving as a comprehensive C++ integration example.
 
-## 🆘 Support & Resources
-
-Need help? We're here to assist:
-
+### 💬 Get Help
+Need assistance? We're here to support you:
 - **Issues**: [GitHub Issues](https://github.com/ai-coustics/aic-sdk-cpp/issues)
 - **Technical Support**: [info@ai-coustics.com](mailto:info@ai-coustics.com)
 
