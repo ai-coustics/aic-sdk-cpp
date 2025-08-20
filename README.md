@@ -110,7 +110,7 @@ All SDKs provide the same core functionality with language-specific optimization
 ### Demo Plugin
 Experience our speech enhancement models firsthand with our [Demo Plugin](https://github.com/ai-coustics/aic-sdk-plugin) - a complete audio plugin that showcases all available models while serving as a comprehensive C++ integration example.
 
-### 💬 Get Help
+### Get Help
 Need assistance? We're here to support you:
 - **Issues**: [GitHub Issues](https://github.com/ai-coustics/aic-sdk-cpp/issues)
 - **Technical Support**: [info@ai-coustics.com](mailto:info@ai-coustics.com)
