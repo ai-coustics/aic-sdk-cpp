@@ -93,6 +93,24 @@ cmake --build build -j
 - **[Basic Example](example/main.cpp)** - Sample code and integration patterns
 - **[CMake Integration Guide](example/CMakeLists.txt)** - Build configuration and SDK integration
 
+## 🌐 Looking for Other Languages?
+
+The ai-coustics Speech Enhancement SDK is available in multiple programming languages to fit your development needs:
+
+| Language | Repository | Description |
+|----------|------------|-------------|
+| C | [aic-sdk-c](https://github.com/ai-coustics/aic-sdk-c) | Core C interface and foundation library |
+| Node.js | [aic-sdk-node](https://github.com/ai-coustics/aic-sdk-node) | JavaScript/TypeScript bindings for Node.js |
+| Python | [aic-sdk-py](https://github.com/ai-coustics/aic-sdk-py) | Pythonic interface |
+| Rust | [aic-sdk-rs](https://github.com/ai-coustics/aic-sdk-rs) | Safe Rust Bindings |
+| WebAssembly | [aic-sdk-wasm](https://github.com/ai-coustics/aic-sdk-wasm) | Browser-compatible WebAssembly build |
+
+All SDKs provide the same core functionality with language-specific optimizations and idioms.
+
+## 🎧 Demo Plugin
+
+Experience our speech enhancement models firsthand with our [Demo Plugin](https://github.com/ai-coustics/aic-sdk-plugin) - a complete audio plugin that showcases all available models while serving as a comprehensive C++ integration example.
+
 ## 🆘 Support & Resources
 
 Need help? We're here to assist:
