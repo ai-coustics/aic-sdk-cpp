@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.6.2 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.1.0 LANGUAGES C CXX)
 
 option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+
+# -------- SDK Version Configuration --------
+set(AIC_SDK_VERSION "0.6.2")
 
 # -------- SDK Platform Configuration --------
 # Map of supported platforms with their triplets, archive extensions, and hashes
@@ -78,7 +81,7 @@ else()
     include(FetchContent)
     if(NOT AIC_SDK_URL)
         set(AIC_SDK_URL
-            "https://github.com/ai-coustics/aic-sdk-c/releases/download/${PROJECT_VERSION}/aic-sdk-${AIC_TRIPLET}-${PROJECT_VERSION}.${AIC_ARCHIVE_EXT}")
+            "https://github.com/ai-coustics/aic-sdk-c/releases/download/${AIC_SDK_VERSION}/aic-sdk-${AIC_TRIPLET}-${AIC_SDK_VERSION}.${AIC_ARCHIVE_EXT}")
     endif()
 
     # Auto-select hash based on triplet if not explicitly provided
@@ -178,6 +181,7 @@ endif()
 # -------- Summary --------
 message(STATUS "=== aic-sdk-cpp ===")
 message(STATUS "  Version:      ${PROJECT_VERSION}")
+message(STATUS "  SDK Version:  ${AIC_SDK_VERSION}")
 message(STATUS "  Triplet:      ${AIC_TRIPLET}")
 message(STATUS "  Static:       ${AIC_SDK_USE_STATIC}")
 message(STATUS "  SDK root:     ${AIC_SDK_ROOT}")

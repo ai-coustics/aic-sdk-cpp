@@ -28,7 +28,7 @@ else()
     FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.6.2
+        GIT_TAG        0.1.0
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(aic_sdk)
