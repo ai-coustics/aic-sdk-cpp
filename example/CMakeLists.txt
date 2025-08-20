@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(MyProject LANGUAGES C CXX)
 
-# Export compile commands
+# Export compile commands for vscode, vim, zed etc.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Require C++11 for the example app
@@ -9,22 +9,22 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include(FetchContent)
+# All ai-coustics CMake configuration settings
+set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow download ai-coustics C SDK")
+set(AIC_SDK_USE_STATIC ON CACHE BOOL "Use static linking for AIC SDK")
+set(AIC_SDK_ROOT "" CACHE PATH "Path to local ai-coustics C SDK (always skips download if set)")
+set(AIC_SDK_URL "" CACHE STRING "Override download URL for ai-coustics C SDK")
+set(AIC_SDK_HASH "" CACHE STRING "Override SHA256 for ai-coustics C SDK")
 
-# Optional: Choose static or dynamic linking (default is static)
-set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time")
-set(AIC_SDK_USE_STATIC ON CACHE BOOL "Use static linking for AIC SDK (optional)")
-set(AIC_SDK_ROOT "" CACHE PATH "Path to preinstalled ai-coustics C SDK (with include/ and lib/)")
-set(AIC_SDK_URL "" CACHE STRING "Override C SDK URL (optional)")
-set(AIC_SDK_HASH "" CACHE STRING "SHA256 of the C SDK archive (recommended)")
+# Path to local C++ wrapper
+set(AIC_SDK_CPP_PATH "../" CACHE PATH "Path to local aic-sdk-cpp directory")
 
-# Path to local aic-sdk-cpp (optional)
-set(AIC_SDK_CPP_LOCAL_PATH "" CACHE PATH "Path to local aic-sdk-cpp directory")
-
-# Use local path if provided, otherwise fetch from Git
-if(AIC_SDK_CPP_LOCAL_PATH AND EXISTS "${AIC_SDK_CPP_LOCAL_PATH}")
-    add_subdirectory("${AIC_SDK_CPP_LOCAL_PATH}" aic_sdk)
+if(AIC_SDK_CPP_PATH AND EXISTS "${AIC_SDK_CPP_PATH}")
+    # Use the local C++ wrapper
+    add_subdirectory("${AIC_SDK_CPP_PATH}" aic_sdk)
 else()
+    include(FetchContent)
+    # Download the C++ wrapper
     FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
@@ -36,5 +36,5 @@ endif()
 
 add_executable(my_app main.cpp)
 
-# Link against the SDK wrapper target
+# Link against the SDK
 target_link_libraries(my_app PRIVATE aic-sdk)

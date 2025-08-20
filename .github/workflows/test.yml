@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure CMake
-        run: cmake "-DAIC_SDK_CPP_LOCAL_PATH=." -B build ./example
+        run: cmake -B build ./example
 
       - name: Build
         run: cmake --build build -j

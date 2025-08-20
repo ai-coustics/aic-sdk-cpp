@@ -27,7 +27,6 @@ foreach(platform_config ${AIC_SDK_PLATFORMS})
 
     set(AIC_SDK_HASH_${triplet} "${hash}" CACHE STRING "SHA256 for ${triplet} SDK")
     set(AIC_SDK_ARCHIVE_EXT_${triplet} "${archive_ext}")
-
 endforeach()
 
 # -------- Platform / filename helpers --------
@@ -175,57 +174,6 @@ if(WIN32)
         ntdll
     )
 endif()
-
-# -------- rpath for shared installs --------`
-if(UNIX AND NOT APPLE AND NOT AIC_SDK_USE_STATIC)
-    set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
-elseif(APPLE AND NOT AIC_SDK_USE_STATIC)
-    set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
-endif()
-
-# -------- Install: headers + C binary + package files --------
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.hpp" PATTERN "*.h")
-
-# Install the prebuilt C SDK artifacts alongside
-install(DIRECTORY "${AIC_C_INCLUDE_DIR}/" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.h")
-install(FILES "${AIC_LIB_FILE}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
-if(WIN32 AND NOT AIC_SDK_USE_STATIC AND EXISTS "${AIC_IMPLIB}")
-    install(FILES "${AIC_IMPLIB}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif()
-if(WIN32 AND NOT AIC_SDK_USE_STATIC AND EXISTS "${AIC_C_LIBDIR}/aic.dll")
-    install(FILES "${AIC_C_LIBDIR}/aic.dll" DESTINATION ${CMAKE_INSTALL_BINDIR})
-endif()
-
-# Export only the single public target from the build tree
-install(TARGETS aic-sdk
-        EXPORT aic-sdkTargets)
-
-# Generate + install a Config file; it will also recreate the imported C target for consumers
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/aic-sdkConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/aic-sdkConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/aic-sdk
-    NO_SET_AND_CHECK_MACRO
-    NO_CHECK_REQUIRED_COMPONENTS_MACRO
-)
-
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/aic-sdkConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
-
-install(EXPORT aic-sdkTargets
-        FILE aic-sdkTargets.cmake
-        NAMESPACE ""  # expose exactly 'aic-sdk' to consumers
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/aic-sdk)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/aic-sdkConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/aic-sdkConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/aic-sdk)
 
 # -------- Summary --------
 message(STATUS "=== aic-sdk-cpp ===")

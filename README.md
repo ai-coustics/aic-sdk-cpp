@@ -17,38 +17,27 @@ To use the SDK, you'll need a license key. Contact our team to receive your time
 
 Once you have your license key, set it as an environment variable or pass it directly to the SDK initialization functions.
 
-### Language Bindings
+### ⚙️ CMake Integration
 
-While this repository contains the C++ wrapper, we offer convenient wrappers for popular programming languages:
+Whith this CMake example you can add the SDK to your application and let CMake download all necessary files automatically:
 
-| Language | Repository | Description |
-|----------|------------|-------------|
-| **C** | [`aic-sdk-c`](https://github.com/ai-coustics/aic-sdk-c) | Core C interface and foundation library |
-| **Node.js** | [`aic-sdk-node`](https://github.com/ai-coustics/aic-sdk-node) | JavaScript/TypeScript bindings for Node.js |
-| **Python** | [`aic-sdk-py`](https://github.com/ai-coustics/aic-sdk-py) | Pythonic interface |
-| **Rust** | [`aic-sdk-rs`](https://github.com/ai-coustics/aic-sdk-rs) | Safe Rust Bindings |
-| **WebAssembly** | [`aic-sdk-wasm`](https://github.com/ai-coustics/aic-sdk-wasm) | Browser-compatible WebAssembly build |
+```cmake
+include(FetchContent)
 
-### Demo Plugin
+set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time")
 
-Experience our speech enhancement models firsthand with our Demo Plugin - a complete audio plugin that showcases all available models while serving as a comprehensive C++ integration example.
+FetchContent_Declare(
+        aic_sdk
+        GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
+        GIT_TAG        0.6.2
+        GIT_SHALLOW    TRUE
+    )
+FetchContent_MakeAvailable(aic_sdk)
 
-| Platform | Repository | Description |
-|----------|------------|-------------|
-| **Demo Plugin** | [`aic-sdk-plugin`](https://github.com/ai-coustics/aic-sdk-plugin) | Audio plugin with real-time model comparison and C++ integration reference |
+target_link_libraries(my_app PRIVATE aic-sdk)
+```
 
-The Demo Plugin provides:
-- **Real-time audio processing** with instant A/B comparison
-- **All model variants** available for testing and evaluation
-- **Production-ready C++ code** demonstrating best practices
-- **Cross-platform compatibility** (VST3, AU, Standalone)
-
-## 📚 Documentation
-
-- **[Basic Example](example/main.cpp)** - Sample code and integration patterns
-- **[CMake Integration Guide](example/CMakeLists.txt)** - Build configuration and SDK integration
-
-## 💡 Example Usage
+### 📝 Example Usage
 
 Here's a simple example showing the core SDK workflow. Error handling is omitted for clarity - see the [complete example](example/main.cpp) for production-ready code:
 
@@ -85,23 +74,13 @@ int main() {
 
 ## 🏃 Running the Example
 
-To build and run the provided example code:
+To run the example, make sure you have set your license key as an environment variable:
 
-### CMake Configuration
-
-Download pre-built library during configure step:
-
-```sh
-cmake -B build -DAIC_SDK_ALLOW_DOWNLOAD=ON
+```bash
+export AIC_SDK_LICENSE="your_license_key_here"
 ```
 
-Use local library:
-
-```sh
-cmake -B build -DAIC_SDK_ROOT=/path/to/aic-sdk/
-```
-
-### Run Example
+Then use the following commands to configure, build and run the example:
 
 ```sh
 cmake -B build ./example
@@ -109,17 +88,15 @@ cmake --build build -j
 ./build/my_app
 ```
 
-To run the example, make sure you have set your license key as an environment variable:
+## 📚 Documentation
 
-```bash
-export AIC_SDK_LICENSE="your_license_key_here"
-```
+- **[Basic Example](example/main.cpp)** - Sample code and integration patterns
+- **[CMake Integration Guide](example/CMakeLists.txt)** - Build configuration and SDK integration
 
 ## 🆘 Support & Resources
 
 Need help? We're here to assist:
 
-- **Example**: [Sample Code](example/main.cpp) and [CMake Configuration](example/CMakeLists.txt)
 - **Issues**: [GitHub Issues](https://github.com/ai-coustics/aic-sdk-cpp/issues)
 - **Technical Support**: [info@ai-coustics.com](mailto:info@ai-coustics.com)
 
