@@ -115,6 +115,10 @@ Need assistance? We're here to support you:
 - **Issues**: [GitHub Issues](https://github.com/ai-coustics/aic-sdk-cpp/issues)
 - **Technical Support**: [info@ai-coustics.com](mailto:info@ai-coustics.com)
 
+
+## 📄 License
+This C++ wrapper is distributed under the [Apache 2.0 license](LICENSE), while the core C SDK is distributed under the proprietary [AIC-SDK license](LICENSE.AIC-SDK).
+
 ---
 
 Made with ❤️ by the ai-coustics team
