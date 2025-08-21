@@ -52,8 +52,8 @@ int main() {
     const char* license = std::getenv("AIC_SDK_LICENSE");
 
     // Create a new model
-    auto creation_result = aic::AicModel::create(aic::ModelType::Quail_S48, license);
-    std::unique_ptr<aic::AicModel>& model = creation_result.first;
+    auto result = aic::AicModel::create(aic::ModelType::Quail_S48, license);
+    auto& model = std::get<std::unique_ptr<aic::AicModel>>(result);
 
     // Initialize with your audio settings
     model->initialize(48000, 2, 480);
