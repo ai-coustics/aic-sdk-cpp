@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
 
 // Use the new C header name from your snippet.
 #include "aic.h"
@@ -122,25 +123,23 @@ class AicModel
      *
      * @param model_type The enhancement algorithm variant to use
      * @param license_key Your license key as a null-terminated string
-     * @return Pair containing Model pointer and error code.
-     *         If successful, the pointer is valid and error is ErrorCode::Success.
-     *         If failed, the pointer is null and error indicates the reason:
+     * @return std::variant containing either a valid AicModel on success, or ErrorCode on failure:
      *         - ErrorCode::LicenseInvalid: License key format is incorrect
      *         - ErrorCode::LicenseExpired: License key has expired
      */
-    static std::pair<std::unique_ptr<AicModel>, ErrorCode> create(ModelType          model_type,
-                                                                  const std::string& license_key)
+    static std::variant<std::unique_ptr<AicModel>, ErrorCode> create(ModelType          model_type,
+                                                                     const std::string& license_key)
     {
         ::AicModel*    raw_model = nullptr;
         ::AicErrorCode rc = aic_model_create(&raw_model, to_c(model_type), license_key.c_str());
 
         if (rc == AIC_ERROR_CODE_SUCCESS)
         {
-            return {std::unique_ptr<AicModel>(new AicModel(raw_model)), ErrorCode::Success};
+            return std::unique_ptr<AicModel>(new AicModel(raw_model));
         }
         else
         {
-            return {std::unique_ptr<AicModel>(), to_cpp(rc)};
+            return to_cpp(rc);
         }
     }
 

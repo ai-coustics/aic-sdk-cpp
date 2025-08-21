@@ -15,14 +15,15 @@ int main()
     std::string license_key(license_env);
 
     auto creation_result = aic::AicModel::create(aic::ModelType::Quail_L48, license_key);
-    std::unique_ptr<aic::AicModel>& model = creation_result.first;
-    aic::ErrorCode                  err   = creation_result.second;
-
-    if (err != aic::ErrorCode::Success)
+    
+    if (std::holds_alternative<aic::ErrorCode>(creation_result))
     {
-        std::cerr << "Model creation failed with error code: " << static_cast<int>(err) << "\n";
+        std::cerr << "Model creation failed with error code: " 
+                  << static_cast<int>(std::get<aic::ErrorCode>(creation_result)) << "\n";
         return 1;
     }
+    
+    std::unique_ptr<aic::AicModel> model = std::get<std::unique_ptr<aic::AicModel>>(creation_result);
 
     uint32_t sample_rate = model->get_optimal_sample_rate();
     size_t   num_frames  = model->get_optimal_num_frames();
