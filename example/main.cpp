@@ -23,7 +23,7 @@ int main()
         return 1;
     }
     
-    std::unique_ptr<aic::AicModel> model = std::get<std::unique_ptr<aic::AicModel>>(creation_result);
+    std::unique_ptr<aic::AicModel> model = std::move(std::get<std::unique_ptr<aic::AicModel>>(creation_result));
 
     uint32_t sample_rate = model->get_optimal_sample_rate();
     size_t   num_frames  = model->get_optimal_num_frames();
@@ -31,7 +31,7 @@ int main()
     std::cout << "Optimal number of frames: " << num_frames << "\n";
     uint16_t num_chans = 1;
 
-    err = model->initialize(sample_rate, num_chans, num_frames);
+    aic::ErrorCode err = model->initialize(sample_rate, num_chans, num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Initialization failed\n";
