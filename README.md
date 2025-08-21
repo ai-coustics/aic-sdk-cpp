@@ -2,11 +2,11 @@
 
 A modern C++ wrapper around the ai-coustics Speech Enhancement SDK, providing type-safe enums and RAII resource management while maintaining a thin layer over the underlying C API.
 
-## 🎯 What is this SDK?
+## What is this SDK?
 
 Our Speech Enhancement SDK delivers state-of-the-art audio processing capabilities, enabling you to enhance speech clarity and intelligibility in real-time.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Acquire an SDK License Key
 
@@ -29,7 +29,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.1.0
+        GIT_TAG        0.6.2
         GIT_SHALLOW    TRUE
     )
 FetchContent_MakeAvailable(aic_sdk)
@@ -72,7 +72,11 @@ int main() {
 }
 ```
 
-## 🏃 Running the Example
+### Compatibility
+
+The wrapper is fully C++11 compatible and on Linux you will need at least GLIBC 2.27 / Ubuntu 18.04.
+
+## Running the Example
 
 To run the example, make sure you have set your license key as an environment variable:
 
@@ -88,7 +92,7 @@ cmake --build build -j
 ./build/my_app
 ```
 
-## 🆘 Support & Resources
+## Support & Resources
 
 ### Documentation
 - **[Basic Example](example/main.cpp)** - Sample code and integration patterns
@@ -115,8 +119,7 @@ Need assistance? We're here to support you:
 - **Issues**: [GitHub Issues](https://github.com/ai-coustics/aic-sdk-cpp/issues)
 - **Technical Support**: [info@ai-coustics.com](mailto:info@ai-coustics.com)
 
-
-## 📄 License
+## License
 This C++ wrapper is distributed under the [Apache 2.0 license](LICENSE), while the core C SDK is distributed under the proprietary [AIC-SDK license](LICENSE.AIC-SDK).
 
 ---
