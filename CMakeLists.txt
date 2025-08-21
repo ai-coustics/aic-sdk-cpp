@@ -1,14 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.1.0 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.6.2 LANGUAGES C CXX)
 
-option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
-
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
-
-# -------- SDK Version Configuration --------
-set(AIC_SDK_VERSION "0.6.2")
+option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 
 # -------- SDK Platform Configuration --------
 # Map of supported platforms with their triplets, archive extensions, and hashes
@@ -28,7 +22,7 @@ foreach(platform_config ${AIC_SDK_PLATFORMS})
     list(GET platform_parts 1 archive_ext)
     list(GET platform_parts 2 hash)
 
-    set(AIC_SDK_HASH_${triplet} "${hash}" CACHE STRING "SHA256 for ${triplet} SDK")
+    set(AIC_SDK_HASH_${triplet} "${hash}")
     set(AIC_SDK_ARCHIVE_EXT_${triplet} "${archive_ext}")
 endforeach()
 
@@ -67,8 +61,6 @@ set(AIC_ARCHIVE_EXT "${AIC_SDK_ARCHIVE_EXT_${AIC_TRIPLET}}")
 
 # -------- Locate C SDK (prefer user-provided) --------
 set(AIC_SDK_ROOT "" CACHE PATH "Path to a preinstalled ai-coustics C SDK (with include/ and lib/)")
-set(AIC_SDK_URL  "" CACHE STRING "Override C SDK URL (optional)")
-set(AIC_SDK_HASH "" CACHE STRING "SHA256 of the C SDK archive (recommended)")
 
 if(AIC_SDK_ROOT)
     set(AIC_C_INCLUDE_DIR "${AIC_SDK_ROOT}/include")
@@ -79,28 +71,15 @@ else()
     endif()
 
     include(FetchContent)
-    if(NOT AIC_SDK_URL)
-        set(AIC_SDK_URL
-            "https://github.com/ai-coustics/aic-sdk-c/releases/download/${AIC_SDK_VERSION}/aic-sdk-${AIC_TRIPLET}-${AIC_SDK_VERSION}.${AIC_ARCHIVE_EXT}")
-    endif()
+    set(AIC_SDK_URL
+        "https://github.com/ai-coustics/aic-sdk-c/releases/download/${PROJECT_VERSION}/aic-sdk-${AIC_TRIPLET}-${PROJECT_VERSION}.${AIC_ARCHIVE_EXT}")
 
-    # Auto-select hash based on triplet if not explicitly provided
-    if(NOT AIC_SDK_HASH)
-        set(AIC_SDK_HASH "${AIC_SDK_HASH_${AIC_TRIPLET}}")
+    set(AIC_SDK_HASH "${AIC_SDK_HASH_${AIC_TRIPLET}}")
 
-    endif()
-
-    if(NOT AIC_SDK_HASH)
-        message(WARNING "No URL_HASH provided for ${AIC_SDK_URL}. For public releases, set AIC_SDK_HASH_${AIC_TRIPLET}.")
-        FetchContent_Declare(aic_sdk_c
-            URL "${AIC_SDK_URL}"
-            DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-    else()
-        FetchContent_Declare(aic_sdk_c
-            URL "${AIC_SDK_URL}"
-            URL_HASH "SHA256=${AIC_SDK_HASH}"
-            DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
-    endif()
+    FetchContent_Declare(aic_sdk_c
+        URL "${AIC_SDK_URL}"
+        URL_HASH "SHA256=${AIC_SDK_HASH}"
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
     FetchContent_MakeAvailable(aic_sdk_c)
 
@@ -176,17 +155,4 @@ if(WIN32)
     target_link_libraries(aic-sdk INTERFACE
         ntdll
     )
-endif()
-
-# -------- Summary --------
-message(STATUS "=== aic-sdk-cpp ===")
-message(STATUS "  Version:      ${PROJECT_VERSION}")
-message(STATUS "  SDK Version:  ${AIC_SDK_VERSION}")
-message(STATUS "  Triplet:      ${AIC_TRIPLET}")
-message(STATUS "  Static:       ${AIC_SDK_USE_STATIC}")
-message(STATUS "  SDK root:     ${AIC_SDK_ROOT}")
-message(STATUS "  SDK URL:      ${AIC_SDK_URL}")
-message(STATUS "  Using lib:    ${AIC_LIB_FILE}")
-if(WIN32 AND NOT AIC_SDK_USE_STATIC)
-    message(STATUS "  Using implib: ${AIC_IMPLIB}")
 endif()
