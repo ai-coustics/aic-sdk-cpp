@@ -13,8 +13,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow download ai-coustics C SDK")
 set(AIC_SDK_USE_STATIC ON CACHE BOOL "Use static linking for AIC SDK")
 set(AIC_SDK_ROOT "" CACHE PATH "Path to local ai-coustics C SDK (always skips download if set)")
-set(AIC_SDK_URL "" CACHE STRING "Override download URL for ai-coustics C SDK")
-set(AIC_SDK_HASH "" CACHE STRING "Override SHA256 for ai-coustics C SDK")
 
 # Path to local C++ wrapper
 set(AIC_SDK_CPP_PATH "../" CACHE PATH "Path to local aic-sdk-cpp directory")
@@ -28,7 +26,7 @@ else()
     FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.1.0
+        GIT_TAG        0.6.2
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(aic_sdk)
