@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.6.2 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.6.3 LANGUAGES C CXX)
 
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
 option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
@@ -8,11 +8,11 @@ option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 # Map of supported platforms with their triplets, archive extensions, and hashes
 set(AIC_SDK_PLATFORMS
     # triplet|archive_ext|hash
-    "aarch64-apple-darwin|tar.gz|7f2a3f1705113a8e0eb4e01cd24afbc959b84451b33fc9aaaea7475e71971fc6"
-    "aarch64-unknown-linux-gnu|tar.gz|25b065eb82dfd21934c244e0e1307bfa6b49af25c3e68986e8e1a0e6f151332d"
-    "x86_64-apple-darwin|tar.gz|5b86b2359427adb56000a88308c75cc9b636890abd5211120a5735ea1e75c696"
-    "x86_64-pc-windows-msvc|zip|c662138cd4d997fec0b1e0fd7312c1693d976a3fe15d4236409d1b645b879281"
-    "x86_64-unknown-linux-gnu|tar.gz|bc410a5aea213bcbf3a3dd9e2192fbd308ff2e15312479f559138814352cc15a"
+    "aarch64-apple-darwin|tar.gz|35384d0e51733f39276c427a92f13d4a983404634604ec5fbeda10a3debc2860"
+    "aarch64-unknown-linux-gnu|tar.gz|3c10d6af456d8d6641f7e0f82e85145f79d7b1b6459c820e489f685296fafc28"
+    "x86_64-apple-darwin|tar.gz|a1e8050c8b87b645c2acb5bce396aa964640074b183da54248c2ef9549c41b6b"
+    "x86_64-pc-windows-msvc|zip|c6a414e23285e3c2930cae4c942f02aea30175a2986a2871304e6229b83bc91b"
+    "x86_64-unknown-linux-gnu|tar.gz|e22593f5cc6241be3d495d4a154c1157f298213e614cbe248a419745fc02e681"
 )
 
 # Parse platform configuration into individual variables
