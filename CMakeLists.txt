@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.6.3 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.7.0 LANGUAGES C CXX)
 
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
 option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
