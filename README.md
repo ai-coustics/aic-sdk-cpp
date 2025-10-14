@@ -29,7 +29,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.6.3
+        GIT_TAG        0.7.0
         GIT_SHALLOW    TRUE
     )
 FetchContent_MakeAvailable(aic_sdk)
@@ -56,7 +56,7 @@ int main() {
     std::unique_ptr<aic::AicModel>& model = creation_result.first;
 
     // Initialize with your audio settings
-    model->initialize(48000, 2, 480);
+    model->initialize(48000, 2, 480, false);
 
     // Configure enhancement parameters
     model->set_parameter(aic::Parameter::EnhancementLevel, 0.7f);
@@ -101,13 +101,13 @@ cmake --build build -j
 ### Looking for Other Languages?
 The ai-coustics Speech Enhancement SDK is available in multiple programming languages to fit your development needs:
 
-| Language | Repository | Description |
+| Platform | Repository | Description |
 |----------|------------|-------------|
-| C | [aic-sdk-c](https://github.com/ai-coustics/aic-sdk-c) | Core C interface and foundation library |
-| Node.js | [aic-sdk-node](https://github.com/ai-coustics/aic-sdk-node) | JavaScript/TypeScript bindings for Node.js |
-| Python | [aic-sdk-py](https://github.com/ai-coustics/aic-sdk-py) | Pythonic interface |
-| Rust | [aic-sdk-rs](https://github.com/ai-coustics/aic-sdk-rs) | Safe Rust Bindings |
-| WebAssembly | [aic-sdk-wasm](https://github.com/ai-coustics/aic-sdk-wasm) | Browser-compatible WebAssembly build |
+| **C** | [`aic-sdk-c`](https://github.com/ai-coustics/aic-sdk-c) | Core C-Interface |
+| **JavaScript/TypeScript** | [`aic-sdk-node`](https://github.com/ai-coustics/aic-sdk-node) | Native bindings for Node.js applications |
+| **Python** | [`aic-sdk-py`](https://github.com/ai-coustics/aic-sdk-py) | Idiomatic Python interface |
+| **Rust** | [`aic-sdk-rs`](https://github.com/ai-coustics/aic-sdk-rs) | Safe Rust bindings with zero-cost abstractions |
+| **Web (WASM)** | [`aic-sdk-wasm`](https://github.com/ai-coustics/aic-sdk-wasm) | WebAssembly build for browser applications |
 
 All SDKs provide the same core functionality with language-specific optimizations and idioms.
 

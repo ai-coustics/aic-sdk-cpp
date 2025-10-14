@@ -25,12 +25,12 @@ int main()
     }
 
     uint32_t sample_rate = model->get_optimal_sample_rate();
-    size_t   num_frames  = model->get_optimal_num_frames();
+    size_t   num_frames  = model->get_optimal_num_frames(sample_rate);
     std::cout << "Optimal sample rate: " << sample_rate << " Hz\n";
     std::cout << "Optimal number of frames: " << num_frames << "\n";
     uint16_t num_chans = 1;
 
-    err = model->initialize(sample_rate, num_chans, num_frames);
+    err = model->initialize(sample_rate, num_chans, num_frames, false);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Initialization failed\n";

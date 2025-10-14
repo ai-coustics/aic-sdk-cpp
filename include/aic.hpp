@@ -11,10 +11,6 @@
 namespace aic
 {
 
-// ---------------------------
-// C++ enum classes (type-safe)
-// ---------------------------
-
 /// Error codes returned by SDK functions
 enum class ErrorCode : int
 {
@@ -34,6 +30,8 @@ enum class ErrorCode : int
     NotInitialized = AIC_ERROR_CODE_NOT_INITIALIZED,
     /// Parameter value is outside acceptable range
     ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
+    /// SDK could not be activated
+    ActivationError = AIC_ERROR_CODE_SDK_ACTIVATION_ERROR,
 };
 
 /// Available model types for audio enhancement
@@ -60,6 +58,8 @@ enum class ModelType : int
 /// Configurable parameters for audio enhancement
 enum class Parameter : int
 {
+    /// Bypass keeping processing delay (0.0/1.0): 0.0=disabled, 1.0=enabled
+    Bypass = AIC_PARAMETER_BYPASS,
     /// Enhancement intensity (0.0-1.0): 0.0=bypass, 1.0=full enhancement
     EnhancementLevel = AIC_PARAMETER_ENHANCEMENT_LEVEL,
     /// Voice gain multiplier (0.1-4.0): linear amplitude multiplier
@@ -95,7 +95,7 @@ inline constexpr ErrorCode to_cpp(::AicErrorCode e)
 // ---------------------------
 
 /**
- * C++ wrapper for the ai|coustics audio enhancement SDK.
+ * C++ wrapper for the ai-coustics audio enhancement SDK.
  *
  * Provides a modern C++ interface around the C API with RAII resource management.
  * Multiple models can be created to process different audio streams simultaneously
@@ -163,13 +163,16 @@ class AicModel
      * @param sample_rate Audio sample rate in Hz (8000 - 192000)
      * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.)
      * @param num_frames Number of samples per channel in each process call
+     * @param allow_variable_frames Process can be called with variable number of frames for the
+     * cost of higher latency
      * @return ErrorCode::Success if configuration accepted,
      *         ErrorCode::UnsupportedAudioConfig if configuration is not supported
      */
-    ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames)
+    ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
+                         bool allow_variable_frames)
     {
-        ::AicErrorCode rc =
-            aic_model_initialize(model_.get(), sample_rate, num_channels, num_frames);
+        ::AicErrorCode rc = aic_model_initialize(model_.get(), sample_rate, num_channels,
+                                                 num_frames, allow_variable_frames);
         return to_cpp(rc);
     }
 
@@ -355,14 +358,13 @@ class AicModel
      * requires 480 frames at 48 kHz, but only 160 frames at 16 kHz to capture the same
      * duration of audio.
      *
-     * Keeps previous behavior (assert on success).
-     *
+     * @param sample_rate The sample rate you want to know the optimal number of frames for
      * @return Optimal number of frames
      */
-    size_t get_optimal_num_frames() const
+    size_t get_optimal_num_frames(uint32_t sample_rate) const
     {
         size_t         num_frames = 0;
-        ::AicErrorCode rc         = aic_get_optimal_num_frames(model_.get(), &num_frames);
+        ::AicErrorCode rc = aic_get_optimal_num_frames(model_.get(), sample_rate, &num_frames);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
         return num_frames;
