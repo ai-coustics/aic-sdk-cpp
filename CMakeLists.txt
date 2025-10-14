@@ -8,11 +8,11 @@ option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 # Map of supported platforms with their triplets, archive extensions, and hashes
 set(AIC_SDK_PLATFORMS
     # triplet|archive_ext|hash
-    "aarch64-apple-darwin|tar.gz|35384d0e51733f39276c427a92f13d4a983404634604ec5fbeda10a3debc2860"
-    "aarch64-unknown-linux-gnu|tar.gz|3c10d6af456d8d6641f7e0f82e85145f79d7b1b6459c820e489f685296fafc28"
-    "x86_64-apple-darwin|tar.gz|a1e8050c8b87b645c2acb5bce396aa964640074b183da54248c2ef9549c41b6b"
-    "x86_64-pc-windows-msvc|zip|c6a414e23285e3c2930cae4c942f02aea30175a2986a2871304e6229b83bc91b"
-    "x86_64-unknown-linux-gnu|tar.gz|e22593f5cc6241be3d495d4a154c1157f298213e614cbe248a419745fc02e681"
+    "aarch64-apple-darwin|tar.gz|1e23d768d26330cd9d1fdf27bf696d795e3b6b32cd49472b5c835cbbd1ceb169"
+    "aarch64-unknown-linux-gnu|tar.gz|81242f6b72002b71f0e0f9a6cdc01bd0eca0bfda2b4f5fd54fe5b454ddb8c5f8"
+    "x86_64-apple-darwin|tar.gz|eaee060867c5a8f0f24258af11500cc0c19e226c73cd5979167c6984cc688493"
+    "x86_64-pc-windows-msvc|zip|6fd7b8a4de6f347c36d76e186323a63c0c86a9ba2497339fc374c9690622fe68"
+    "x86_64-unknown-linux-gnu|tar.gz|027ff639fd2aa44c22316e89ac842b32a02932ab6784b00b84c13241d1e85945"
 )
 
 # Parse platform configuration into individual variables

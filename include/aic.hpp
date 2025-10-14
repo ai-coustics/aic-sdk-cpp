@@ -22,8 +22,6 @@ enum class ErrorCode : int
     LicenseInvalid = AIC_ERROR_CODE_LICENSE_INVALID,
     /// License key has expired
     LicenseExpired = AIC_ERROR_CODE_LICENSE_EXPIRED,
-    /// SDK could not be activated
-    ActivationError = AIC_ERROR_CODE_SDK_ACTIVATION_ERROR,
     /// Audio configuration is not supported by the model
     UnsupportedAudioConfig = AIC_ERROR_CODE_UNSUPPORTED_AUDIO_CONFIG,
     /// Process was called with a different audio buffer configuration than initialized
@@ -32,6 +30,8 @@ enum class ErrorCode : int
     NotInitialized = AIC_ERROR_CODE_NOT_INITIALIZED,
     /// Parameter value is outside acceptable range
     ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
+    /// SDK could not be activated
+    ActivationError = AIC_ERROR_CODE_SDK_ACTIVATION_ERROR,
 };
 
 /// Available model types for audio enhancement
@@ -163,14 +163,16 @@ class AicModel
      * @param sample_rate Audio sample rate in Hz (8000 - 192000)
      * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.)
      * @param num_frames Number of samples per channel in each process call
-     * @param allow_variable_frames Process can be called with variable number of frames for the cost of higher latency
+     * @param allow_variable_frames Process can be called with variable number of frames for the
+     * cost of higher latency
      * @return ErrorCode::Success if configuration accepted,
      *         ErrorCode::UnsupportedAudioConfig if configuration is not supported
      */
-    ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames, bool allow_variable_frames)
+    ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
+                         bool allow_variable_frames)
     {
-        ::AicErrorCode rc =
-            aic_model_initialize(model_.get(), sample_rate, num_channels, num_frames);
+        ::AicErrorCode rc = aic_model_initialize(model_.get(), sample_rate, num_channels,
+                                                 num_frames, allow_variable_frames);
         return to_cpp(rc);
     }
 
@@ -362,7 +364,7 @@ class AicModel
     size_t get_optimal_num_frames(uint32_t sample_rate) const
     {
         size_t         num_frames = 0;
-        ::AicErrorCode rc         = aic_get_optimal_num_frames(model_.get(), &num_frames);
+        ::AicErrorCode rc = aic_get_optimal_num_frames(model_.get(), sample_rate, &num_frames);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
         return num_frames;
