@@ -154,5 +154,7 @@ endif()
 if(WIN32)
     target_link_libraries(aic-sdk INTERFACE
         ntdll
+        ws2_32
+        bcrypt
     )
 endif()
