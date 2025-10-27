@@ -26,7 +26,8 @@ enum class ErrorCode : int
     AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
     /// Audio buffer configuration differs from the one provided during initialization.
     AudioConfigMismatch = AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH,
-    /// SDK key was not authorized or process failed to report usage. Check if you have internet connection.
+    /// SDK key was not authorized or process failed to report usage. Check if you have internet
+    /// connection.
     EnhancementNotAllowed = AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED,
     /// Internal error occurred. Contact support.
     InternalError = AIC_ERROR_CODE_INTERNAL_ERROR,
@@ -130,6 +131,7 @@ class AicModel
      *         If successful, the pointer is valid and error is ErrorCode::Success.
      *         If failed, the pointer is null and error indicates the reason:
      *         - ErrorCode::LicenseInvalid: License key format is incorrect
+     *         - ErrorCode::LicenseVersionUnsupported: not compatible with SDK version
      *         - ErrorCode::LicenseExpired: License key has expired
      */
     static std::pair<std::unique_ptr<AicModel>, ErrorCode> create(ModelType          model_type,
@@ -170,7 +172,7 @@ class AicModel
      * @param allow_variable_frames Process can be called with variable number of frames for the
      * cost of higher latency
      * @return ErrorCode::Success if configuration accepted,
-     *         ErrorCode::UnsupportedAudioConfig if configuration is not supported
+     *         ErrorCode::AudioConfigUnsupported if configuration is not supported
      */
     ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
                          bool allow_variable_frames)
@@ -210,6 +212,7 @@ class AicModel
      * @return ErrorCode::Success if audio processed successfully,
      *         ErrorCode::NotInitialized if model has not been initialized,
      *         ErrorCode::AudioConfigMismatch if channel or frame count mismatch
+     *         ErrorCode::EnhancementNotAllowed if backend blocks or could not be contacted
      */
     ErrorCode process_planar(float* const* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -229,6 +232,7 @@ class AicModel
      * @return ErrorCode::Success if audio processed successfully,
      *         ErrorCode::NotInitialized if model has not been initialized,
      *         ErrorCode::AudioConfigMismatch if channel or frame count mismatch
+     *         ErrorCode::EnhancementNotAllowed if backend blocks or could not be contacted
      */
     ErrorCode process_interleaved(float* audio, uint16_t num_channels, size_t num_frames)
     {
