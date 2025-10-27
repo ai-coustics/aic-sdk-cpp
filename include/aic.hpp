@@ -16,22 +16,26 @@ enum class ErrorCode : int
 {
     /// Operation completed successfully
     Success = AIC_ERROR_CODE_SUCCESS,
-    /// Required pointer argument was NULL
+    /// Required pointer argument was NULL. Check all pointer parameters.
     NullPointer = AIC_ERROR_CODE_NULL_POINTER,
-    /// License key format is invalid or corrupted
-    LicenseInvalid = AIC_ERROR_CODE_LICENSE_INVALID,
+    /// Parameter value is outside the acceptable range. Check documentation for valid values.
+    ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
+    /// Model must be initialized before calling this operation. Call `aic_model_initialize` first.
+    ModelNotInitialized = AIC_ERROR_CODE_MODEL_NOT_INITIALIZED,
+    /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
+    AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
+    /// Audio buffer configuration differs from the one provided during initialization.
+    AudioConfigMismatch = AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH,
+    /// SDK key was not authorized or process failed to report usage. Check if you have internet connection.
+    EnhancementNotAllowed = AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED,
+    /// Internal error occurred. Contact support.
+    InternalError = AIC_ERROR_CODE_INTERNAL_ERROR,
+    /// License key format is invalid or corrupted. Verify the key was copied correctly.
+    LicenseFormatInvalid = AIC_ERROR_CODE_LICENSE_FORMAT_INVALID,
+    /// License version is not compatible with the SDK version. Update SDK or contact support.
+    LicenseVersionUnsupported = AIC_ERROR_CODE_LICENSE_VERSION_UNSUPPORTED,
     /// License key has expired
     LicenseExpired = AIC_ERROR_CODE_LICENSE_EXPIRED,
-    /// Audio configuration is not supported by the model
-    UnsupportedAudioConfig = AIC_ERROR_CODE_UNSUPPORTED_AUDIO_CONFIG,
-    /// Process was called with a different audio buffer configuration than initialized
-    AudioConfigMismatch = AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH,
-    /// Model must be initialized before this operation
-    NotInitialized = AIC_ERROR_CODE_NOT_INITIALIZED,
-    /// Parameter value is outside acceptable range
-    ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
-    /// SDK could not be activated
-    ActivationError = AIC_ERROR_CODE_SDK_ACTIVATION_ERROR,
 };
 
 /// Available model types for audio enhancement

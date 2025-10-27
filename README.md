@@ -8,14 +8,11 @@ Our Speech Enhancement SDK delivers state-of-the-art audio processing capabiliti
 
 ## Quick Start
 
-### Acquire an SDK License Key
+### Generate your SDK License Key
 
-To use the SDK, you'll need a license key. Contact our team to receive your time-limited demo key:
+To use this SDK, you'll need to generate an **SDK license key** from our [Development Portal](https://developers.ai-coustics.io).
 
-- **Email**: [info@ai-coustics.com](mailto:info@ai-coustics.com)
-- **Website**: [ai-coustics.com](https://ai-coustics.com)
-
-Once you have your license key, set it as an environment variable or pass it directly to the SDK initialization functions.
+**Please note:** The SDK license key is different from our cloud API product. If you have an API license key for our cloud services, it won't work with the SDK - you'll need to create a separate SDK license key in the portal.
 
 ### CMake Integration
 
@@ -29,7 +26,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.7.0
+        GIT_TAG        0.8.0
         GIT_SHALLOW    TRUE
     )
 FetchContent_MakeAvailable(aic_sdk)
@@ -104,9 +101,9 @@ The ai-coustics Speech Enhancement SDK is available in multiple programming lang
 | Platform | Repository | Description |
 |----------|------------|-------------|
 | **C** | [`aic-sdk-c`](https://github.com/ai-coustics/aic-sdk-c) | Core C-Interface |
-| **JavaScript/TypeScript** | [`aic-sdk-node`](https://github.com/ai-coustics/aic-sdk-node) | Native bindings for Node.js applications |
 | **Python** | [`aic-sdk-py`](https://github.com/ai-coustics/aic-sdk-py) | Idiomatic Python interface |
 | **Rust** | [`aic-sdk-rs`](https://github.com/ai-coustics/aic-sdk-rs) | Safe Rust bindings with zero-cost abstractions |
+| **JavaScript/TypeScript** | [`aic-sdk-node`](https://github.com/ai-coustics/aic-sdk-node) | Native bindings for Node.js applications |
 | **Web (WASM)** | [`aic-sdk-wasm`](https://github.com/ai-coustics/aic-sdk-wasm) | WebAssembly build for browser applications |
 
 All SDKs provide the same core functionality with language-specific optimizations and idioms.
