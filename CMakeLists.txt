@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.7.0 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.8.0 LANGUAGES C CXX)
 
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
 option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
@@ -8,11 +8,11 @@ option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 # Map of supported platforms with their triplets, archive extensions, and hashes
 set(AIC_SDK_PLATFORMS
     # triplet|archive_ext|hash
-    "aarch64-apple-darwin|tar.gz|1e23d768d26330cd9d1fdf27bf696d795e3b6b32cd49472b5c835cbbd1ceb169"
-    "aarch64-unknown-linux-gnu|tar.gz|81242f6b72002b71f0e0f9a6cdc01bd0eca0bfda2b4f5fd54fe5b454ddb8c5f8"
-    "x86_64-apple-darwin|tar.gz|eaee060867c5a8f0f24258af11500cc0c19e226c73cd5979167c6984cc688493"
-    "x86_64-pc-windows-msvc|zip|6fd7b8a4de6f347c36d76e186323a63c0c86a9ba2497339fc374c9690622fe68"
-    "x86_64-unknown-linux-gnu|tar.gz|027ff639fd2aa44c22316e89ac842b32a02932ab6784b00b84c13241d1e85945"
+    "aarch64-apple-darwin|tar.gz|030c2948fa8f4d7132de71220e47f67280a2ea60bbad853a6fd619afcf4667ef"
+    "aarch64-unknown-linux-gnu|tar.gz|fa352fb1c3db29f30ae04eb3d82678e24982c432b045c985cd21592e91b9c0bc"
+    "x86_64-apple-darwin|tar.gz|c83f9e2615275bc814852d9cda73df067491dff214d39b12f678b7e1b5fc07ab"
+    "x86_64-pc-windows-msvc|zip|d8e45d8e05674b65d1e654eab810e727b45ec8558a08fb16ec26100c93da3e18"
+    "x86_64-unknown-linux-gnu|tar.gz|342eb68363e3c28c900814618ab3586d058e4d4f4b1c1f204bea6a18438bc8e6"
 )
 
 # Parse platform configuration into individual variables
@@ -133,26 +133,28 @@ if(WIN32 AND NOT AIC_SDK_USE_STATIC AND DEFINED AIC_IMPLIB)
     )
 endif()
 
-# -------- Header-only C++ wrapper (single public name) --------
-add_library(aic-sdk INTERFACE)
+# -------- C++ wrapper --------
+add_library(aic-sdk src/aic.cpp)
 
-target_link_libraries(aic-sdk INTERFACE aic_c)
-target_include_directories(aic-sdk INTERFACE
+target_link_libraries(aic-sdk PUBLIC aic_c)
+target_include_directories(aic-sdk PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_compile_features(aic-sdk INTERFACE cxx_std_11)
+target_compile_features(aic-sdk PUBLIC cxx_std_11)
 
 # Add required system frameworks on macOS
 if(APPLE)
-    target_link_libraries(aic-sdk INTERFACE
+    target_link_libraries(aic-sdk PUBLIC
         "-framework CoreFoundation"
     )
 endif()
 
 # Add required system libraries on Windows
 if(WIN32)
-    target_link_libraries(aic-sdk INTERFACE
+    target_link_libraries(aic-sdk PUBLIC
         ntdll
+        ws2_32
+        bcrypt
     )
 endif()

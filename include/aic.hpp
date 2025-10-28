@@ -16,22 +16,27 @@ enum class ErrorCode : int
 {
     /// Operation completed successfully
     Success = AIC_ERROR_CODE_SUCCESS,
-    /// Required pointer argument was NULL
+    /// Required pointer argument was NULL. Check all pointer parameters.
     NullPointer = AIC_ERROR_CODE_NULL_POINTER,
-    /// License key format is invalid or corrupted
-    LicenseInvalid = AIC_ERROR_CODE_LICENSE_INVALID,
+    /// Parameter value is outside the acceptable range. Check documentation for valid values.
+    ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
+    /// Model must be initialized before calling this operation. Call `aic_model_initialize` first.
+    ModelNotInitialized = AIC_ERROR_CODE_MODEL_NOT_INITIALIZED,
+    /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
+    AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
+    /// Audio buffer configuration differs from the one provided during initialization.
+    AudioConfigMismatch = AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH,
+    /// SDK key was not authorized or process failed to report usage. Check if you have internet
+    /// connection.
+    EnhancementNotAllowed = AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED,
+    /// Internal error occurred. Contact support.
+    InternalError = AIC_ERROR_CODE_INTERNAL_ERROR,
+    /// License key format is invalid or corrupted. Verify the key was copied correctly.
+    LicenseFormatInvalid = AIC_ERROR_CODE_LICENSE_FORMAT_INVALID,
+    /// License version is not compatible with the SDK version. Update SDK or contact support.
+    LicenseVersionUnsupported = AIC_ERROR_CODE_LICENSE_VERSION_UNSUPPORTED,
     /// License key has expired
     LicenseExpired = AIC_ERROR_CODE_LICENSE_EXPIRED,
-    /// Audio configuration is not supported by the model
-    UnsupportedAudioConfig = AIC_ERROR_CODE_UNSUPPORTED_AUDIO_CONFIG,
-    /// Process was called with a different audio buffer configuration than initialized
-    AudioConfigMismatch = AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH,
-    /// Model must be initialized before this operation
-    NotInitialized = AIC_ERROR_CODE_NOT_INITIALIZED,
-    /// Parameter value is outside acceptable range
-    ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
-    /// SDK could not be activated
-    ActivationError = AIC_ERROR_CODE_SDK_ACTIVATION_ERROR,
 };
 
 /// Available model types for audio enhancement
@@ -126,23 +131,10 @@ class AicModel
      *         If successful, the pointer is valid and error is ErrorCode::Success.
      *         If failed, the pointer is null and error indicates the reason:
      *         - ErrorCode::LicenseInvalid: License key format is incorrect
+     *         - ErrorCode::LicenseVersionUnsupported: not compatible with SDK version
      *         - ErrorCode::LicenseExpired: License key has expired
      */
-    static std::pair<std::unique_ptr<AicModel>, ErrorCode> create(ModelType          model_type,
-                                                                  const std::string& license_key)
-    {
-        ::AicModel*    raw_model = nullptr;
-        ::AicErrorCode rc = aic_model_create(&raw_model, to_c(model_type), license_key.c_str());
-
-        if (rc == AIC_ERROR_CODE_SUCCESS)
-        {
-            return {std::unique_ptr<AicModel>(new AicModel(raw_model)), ErrorCode::Success};
-        }
-        else
-        {
-            return {std::unique_ptr<AicModel>(), to_cpp(rc)};
-        }
-    }
+    static std::pair<std::unique_ptr<AicModel>, ErrorCode> create(ModelType model_type, const std::string& license_key);
 
     // Disable copy constructor and assignment
     AicModel(const AicModel&)            = delete;
@@ -166,7 +158,7 @@ class AicModel
      * @param allow_variable_frames Process can be called with variable number of frames for the
      * cost of higher latency
      * @return ErrorCode::Success if configuration accepted,
-     *         ErrorCode::UnsupportedAudioConfig if configuration is not supported
+     *         ErrorCode::AudioConfigUnsupported if configuration is not supported
      */
     ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
                          bool allow_variable_frames)
@@ -206,6 +198,7 @@ class AicModel
      * @return ErrorCode::Success if audio processed successfully,
      *         ErrorCode::NotInitialized if model has not been initialized,
      *         ErrorCode::AudioConfigMismatch if channel or frame count mismatch
+     *         ErrorCode::EnhancementNotAllowed if backend blocks or could not be contacted
      */
     ErrorCode process_planar(float* const* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -225,6 +218,7 @@ class AicModel
      * @return ErrorCode::Success if audio processed successfully,
      *         ErrorCode::NotInitialized if model has not been initialized,
      *         ErrorCode::AudioConfigMismatch if channel or frame count mismatch
+     *         ErrorCode::EnhancementNotAllowed if backend blocks or could not be contacted
      */
     ErrorCode process_interleaved(float* audio, uint16_t num_channels, size_t num_frames)
     {
