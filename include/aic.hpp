@@ -134,21 +134,7 @@ class AicModel
      *         - ErrorCode::LicenseVersionUnsupported: not compatible with SDK version
      *         - ErrorCode::LicenseExpired: License key has expired
      */
-    static std::pair<std::unique_ptr<AicModel>, ErrorCode> create(ModelType          model_type,
-                                                                  const std::string& license_key)
-    {
-        ::AicModel*    raw_model = nullptr;
-        ::AicErrorCode rc = aic_model_create(&raw_model, to_c(model_type), license_key.c_str());
-
-        if (rc == AIC_ERROR_CODE_SUCCESS)
-        {
-            return {std::unique_ptr<AicModel>(new AicModel(raw_model)), ErrorCode::Success};
-        }
-        else
-        {
-            return {std::unique_ptr<AicModel>(), to_cpp(rc)};
-        }
-    }
+    static std::pair<std::unique_ptr<AicModel>, ErrorCode> create(ModelType model_type, const std::string& license_key);
 
     // Disable copy constructor and assignment
     AicModel(const AicModel&)            = delete;

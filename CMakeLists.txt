@@ -133,26 +133,26 @@ if(WIN32 AND NOT AIC_SDK_USE_STATIC AND DEFINED AIC_IMPLIB)
     )
 endif()
 
-# -------- Header-only C++ wrapper (single public name) --------
-add_library(aic-sdk INTERFACE)
+# -------- C++ wrapper --------
+add_library(aic-sdk src/aic.cpp)
 
-target_link_libraries(aic-sdk INTERFACE aic_c)
-target_include_directories(aic-sdk INTERFACE
+target_link_libraries(aic-sdk PUBLIC aic_c)
+target_include_directories(aic-sdk PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_compile_features(aic-sdk INTERFACE cxx_std_11)
+target_compile_features(aic-sdk PUBLIC cxx_std_11)
 
 # Add required system frameworks on macOS
 if(APPLE)
-    target_link_libraries(aic-sdk INTERFACE
+    target_link_libraries(aic-sdk PUBLIC
         "-framework CoreFoundation"
     )
 endif()
 
 # Add required system libraries on Windows
 if(WIN32)
-    target_link_libraries(aic-sdk INTERFACE
+    target_link_libraries(aic-sdk PUBLIC
         ntdll
         ws2_32
         bcrypt
