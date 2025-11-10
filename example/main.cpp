@@ -40,22 +40,54 @@ int main()
     size_t output_delay = model->get_output_delay();
     std::cout << "Output delay: " << output_delay << " samples\n";
 
+    // Create and test VAD
+    auto vad_creation_result = aic::AicVad::create(*model);
+    std::unique_ptr<aic::AicVad>& vad = vad_creation_result.first;
+    aic::ErrorCode                vad_err = vad_creation_result.second;
+
+    if (vad_err != aic::ErrorCode::Success)
+    {
+        std::cerr << "VAD creation failed with error code: " << static_cast<int>(vad_err) << "\n";
+        return 1;
+    }
+
+    // Set VAD parameters
+    vad_err = vad->set_parameter(aic::VadParameter::LookbackBufferSize, 5.0f);
+    if (vad_err != aic::ErrorCode::Success)
+    {
+        std::cerr << "Failed to set VAD lookback buffer size\n";
+        return 1;
+    }
+
+    vad_err = vad->set_parameter(aic::VadParameter::Sensitivity, 8.0f);
+    if (vad_err != aic::ErrorCode::Success)
+    {
+        std::cerr << "Failed to set VAD sensitivity\n";
+        return 1;
+    }
+
+    // Get VAD parameter values
+    float lookback = vad->get_parameter(aic::VadParameter::LookbackBufferSize);
+    float sensitivity = vad->get_parameter(aic::VadParameter::Sensitivity);
+    std::cout << "VAD lookback buffer size: " << lookback << "\n";
+    std::cout << "VAD sensitivity: " << sensitivity << "\n";
+
     // Test all available parameters
-    err = model->set_parameter(aic::Parameter::EnhancementLevel, 0.8f);
+    err = model->set_parameter(aic::EnhancementParameter::EnhancementLevel, 0.8f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set enhancement level\n";
         return 1;
     }
 
-    err = model->set_parameter(aic::Parameter::VoiceGain, 1.2f);
+    err = model->set_parameter(aic::EnhancementParameter::VoiceGain, 1.2f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set voice gain\n";
         return 1;
     }
 
-    err = model->set_parameter(aic::Parameter::NoiseGateEnable, 1.0f);
+    err = model->set_parameter(aic::EnhancementParameter::NoiseGateEnable, 1.0f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set noise gate enable\n";
@@ -86,10 +118,20 @@ int main()
         return 1;
     }
 
+    // Check if speech is detected after processing
+    bool speech_detected = false;
+    vad_err = vad->is_speech_detected(speech_detected);
+    if (vad_err != aic::ErrorCode::Success)
+    {
+        std::cerr << "Failed to check speech detection\n";
+        return 1;
+    }
+    std::cout << "Speech detected: " << (speech_detected ? "yes" : "no") << "\n";
+
     // Get all parameter values to verify they were set correctly
-    float enhancement_level = model->get_parameter(aic::Parameter::EnhancementLevel);
-    float voice_gain        = model->get_parameter(aic::Parameter::VoiceGain);
-    float noise_gate        = model->get_parameter(aic::Parameter::NoiseGateEnable);
+    float enhancement_level = model->get_parameter(aic::EnhancementParameter::EnhancementLevel);
+    float voice_gain        = model->get_parameter(aic::EnhancementParameter::VoiceGain);
+    float noise_gate        = model->get_parameter(aic::EnhancementParameter::NoiseGateEnable);
 
     std::cout << "Enhancement level: " << enhancement_level << "\n";
     std::cout << "Voice gain: " << voice_gain << "\n";

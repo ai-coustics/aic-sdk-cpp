@@ -25,4 +25,18 @@ AicModel::create(ModelType model_type, const std::string& license_key)
     return {std::unique_ptr<AicModel>(), to_cpp(rc)};
 }
 
+std::pair<std::unique_ptr<AicVad>, ErrorCode>
+AicVad::create(const AicModel& model)
+{
+    ::AicVad*      raw_vad = nullptr;
+    ::AicErrorCode rc      = aic_vad_create(&raw_vad, model.get_c_model());
+
+    if (rc == AIC_ERROR_CODE_SUCCESS)
+    {
+        return {std::unique_ptr<AicVad>(new AicVad(raw_vad)), ErrorCode::Success};
+    }
+
+    return {std::unique_ptr<AicVad>(), to_cpp(rc)};
+}
+
 } // namespace aic
