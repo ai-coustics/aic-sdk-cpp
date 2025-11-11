@@ -61,16 +61,25 @@ enum class ModelType : int
 };
 
 /// Configurable parameters for audio enhancement
-enum class Parameter : int
+enum class EnhancementParameter : int
 {
     /// Bypass keeping processing delay (0.0/1.0): 0.0=disabled, 1.0=enabled
-    Bypass = AIC_PARAMETER_BYPASS,
+    Bypass = AIC_ENHANCEMENT_PARAMETER_BYPASS,
     /// Enhancement intensity (0.0-1.0): 0.0=bypass, 1.0=full enhancement
-    EnhancementLevel = AIC_PARAMETER_ENHANCEMENT_LEVEL,
+    EnhancementLevel = AIC_ENHANCEMENT_PARAMETER_ENHANCEMENT_LEVEL,
     /// Voice gain multiplier (0.1-4.0): linear amplitude multiplier
-    VoiceGain = AIC_PARAMETER_VOICE_GAIN,
+    VoiceGain = AIC_ENHANCEMENT_PARAMETER_VOICE_GAIN,
     /// Noise gate enable (0.0/1.0): 0.0=disabled, 1.0=enabled
-    NoiseGateEnable = AIC_PARAMETER_NOISE_GATE_ENABLE,
+    NoiseGateEnable = AIC_ENHANCEMENT_PARAMETER_NOISE_GATE_ENABLE,
+};
+
+/// Configurable parameters for voice activity detection (VAD)
+enum class VadParameter : int
+{
+    /// Controls the lookback buffer size used in the Voice Activity Detector. (1.0-20.0)
+    LookbackBufferSize = AIC_VAD_PARAMETER_LOOKBACK_BUFFER_SIZE,
+    /// Controls the sensitivity (energy threshold) of the VAD. (1.0-15.0)
+    Sensitivity = AIC_VAD_PARAMETER_SENSITIVITY,
 };
 
 // ---------------------------
@@ -85,9 +94,13 @@ inline constexpr ::AicModelType to_c(ModelType m)
 {
     return static_cast<::AicModelType>(static_cast<int>(m));
 }
-inline constexpr ::AicParameter to_c(Parameter p)
+inline constexpr ::AicEnhancementParameter to_c(EnhancementParameter p)
 {
-    return static_cast<::AicParameter>(static_cast<int>(p));
+    return static_cast<::AicEnhancementParameter>(static_cast<int>(p));
+}
+inline constexpr ::AicVadParameter to_c(VadParameter p)
+{
+    return static_cast<::AicVadParameter>(static_cast<int>(p));
 }
 
 inline constexpr ErrorCode to_cpp(::AicErrorCode e)
@@ -118,6 +131,9 @@ class AicModel
   public:
     // Constructor for internal use by create() method
     explicit AicModel(::AicModel* model) : model_(model, aic_model_destroy) {}
+
+    // Internal accessor for C API interop (used by AicVad)
+    ::AicModel* get_c_model() const { return model_.get(); }
 
     /**
      * Creates a new audio enhancement model instance.
@@ -243,7 +259,7 @@ class AicModel
      * @return ErrorCode::Success if parameter updated successfully,
      *         ErrorCode::ParameterOutOfRange if value outside valid range
      */
-    ErrorCode set_parameter(Parameter parameter, float value)
+    ErrorCode set_parameter(EnhancementParameter parameter, float value)
     {
         ::AicErrorCode rc = aic_model_set_parameter(model_.get(), to_c(parameter), value);
         return to_cpp(rc);
@@ -258,7 +274,7 @@ class AicModel
      * @param parameter Parameter to query
      * @return Current parameter value
      */
-    float get_parameter(Parameter parameter) const
+    float get_parameter(EnhancementParameter parameter) const
     {
         float          value = 0.0f;
         ::AicErrorCode rc    = aic_model_get_parameter(model_.get(), to_c(parameter), &value);
@@ -373,6 +389,103 @@ class AicModel
     {
         const char* v = ::aic_get_sdk_version();
         return v ? std::string(v) : std::string();
+    }
+};
+
+/**
+ * C++ wrapper for the ai-coustics Voice Activity Detection (VAD).
+ *
+ * Provides a modern C++ interface around the C VAD API with RAII resource management.
+ * The VAD is created from an existing AicModel and detects speech activity in the
+ * processed audio stream.
+ *
+ * - No exceptions
+ * - No convenience functions
+ * - Thin RAII around the C API
+ */
+class AicVad
+{
+  private:
+    std::unique_ptr<::AicVad, void (*)(::AicVad*)> vad_;
+
+  public:
+    // Constructor for internal use by create() method
+    explicit AicVad(::AicVad* vad) : vad_(vad, aic_vad_destroy) {}
+
+    /**
+     * Creates a new Voice Activity Detection (VAD) instance.
+     *
+     * The VAD works automatically using the enhanced audio output of the given model.
+     *
+     * @note If the backing model is destroyed, the VAD instance will stop
+     *       producing new data. It is safe to destroy the model without destroying the VAD.
+     *
+     * @param model The AicModel instance to use as data source for the VAD
+     * @return Pair containing AicVad pointer and error code.
+     *         If successful, the pointer is valid and error is ErrorCode::Success.
+     *         If failed, the pointer is null and error indicates the reason.
+     */
+    static std::pair<std::unique_ptr<AicVad>, ErrorCode> create(const AicModel& model);
+
+    // Disable copy constructor and assignment
+    AicVad(const AicVad&)            = delete;
+    AicVad& operator=(const AicVad&) = delete;
+
+    /**
+     * Returns the VAD's speech detection prediction.
+     *
+     * @note The latency of the VAD prediction is equal to the backing model's
+     *       processing latency.
+     * @note If the backing model stops being processed, the VAD will not update
+     *       its speech detection prediction.
+     *
+     * @param value Output parameter that receives the VAD prediction
+     * @return ErrorCode::Success if prediction retrieved successfully,
+     *         ErrorCode::NullPointer if value is null
+     */
+    ErrorCode is_speech_detected(bool& value) const
+    {
+        ::AicErrorCode rc = aic_vad_is_speech_detected(vad_.get(), &value);
+        return to_cpp(rc);
+    }
+
+    /**
+     * Modifies a VAD parameter.
+     *
+     * All parameters can be changed during audio processing.
+     * This function can be called from any thread.
+     *
+     * Parameter ranges:
+     * - LookbackBufferSize: 1.0 to 20.0 (controls lookback buffer size)
+     * - Sensitivity: 1.0 to 15.0 (controls energy threshold)
+     *
+     * @param parameter Parameter to modify
+     * @param value New parameter value (see ranges above)
+     * @return ErrorCode::Success if parameter updated successfully,
+     *         ErrorCode::ParameterOutOfRange if value outside valid range
+     */
+    ErrorCode set_parameter(VadParameter parameter, float value)
+    {
+        ::AicErrorCode rc = aic_vad_set_parameter(vad_.get(), to_c(parameter), value);
+        return to_cpp(rc);
+    }
+
+    /**
+     * Retrieves the current value of a VAD parameter.
+     *
+     * This function can be called from any thread.
+     * This method keeps the old behavior: assert on success, return value.
+     *
+     * @param parameter Parameter to query
+     * @return Current parameter value
+     */
+    float get_parameter(VadParameter parameter) const
+    {
+        float          value = 0.0f;
+        ::AicErrorCode rc    = aic_vad_get_parameter(vad_.get(), to_c(parameter), &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
     }
 };
 
