@@ -152,9 +152,31 @@ endif()
 
 # Add required system libraries on Windows
 if(WIN32)
+    # Provide import lib for ProcessPrng which is exported by bcryptprimitives.dll
+    # The Windows SDK does not ship an import lib for it. We synthesize one
+    # from a .def file and make aic-sdk depend on it, so the file exists
+    # when consumers link.
+    set(BCRYPTPRIMITIVES_STUB_LIB ${CMAKE_CURRENT_BINARY_DIR}/bcryptprimitives_extra.lib)
+    add_custom_command(
+        OUTPUT ${BCRYPTPRIMITIVES_STUB_LIB}
+        COMMAND lib /DEF:${CMAKE_CURRENT_SOURCE_DIR}/bcryptprimitives_extra.def /OUT:${BCRYPTPRIMITIVES_STUB_LIB} /MACHINE:X64
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/bcryptprimitives_extra.def
+        VERBATIM
+    )
+    add_custom_target(bcryptprimitives_stub ALL DEPENDS ${BCRYPTPRIMITIVES_STUB_LIB})
+    add_dependencies(aic-sdk bcryptprimitives_stub)
+
+    # Link standard Windows SDK libs required by the C SDK
+    # - ws2_32: networking
+    # - bcrypt: crypto primitives
+    # - Synchronization: WaitOnAddress/WakeByAddress*
+    # - ntdll: Nt* and Rtl* used by deps
+    # - bcryptprimitives_extra.lib: import for ProcessPrng
     target_link_libraries(aic-sdk PUBLIC
-        ntdll
         ws2_32
         bcrypt
+        Synchronization
+        ntdll
+        ${BCRYPTPRIMITIVES_STUB_LIB}
     )
 endif()
