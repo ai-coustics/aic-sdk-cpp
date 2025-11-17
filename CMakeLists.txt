@@ -157,9 +157,17 @@ if(WIN32)
     # from a .def file and make aic-sdk depend on it, so the file exists
     # when consumers link.
     set(BCRYPTPRIMITIVES_STUB_LIB ${CMAKE_CURRENT_BINARY_DIR}/bcryptprimitives_extra.lib)
+
+    # Determine machine architecture for lib.exe
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+        set(LIB_MACHINE "ARM64")
+    else()
+        set(LIB_MACHINE "X64")
+    endif()
+
     add_custom_command(
         OUTPUT ${BCRYPTPRIMITIVES_STUB_LIB}
-        COMMAND lib /DEF:${CMAKE_CURRENT_SOURCE_DIR}/bcryptprimitives_extra.def /OUT:${BCRYPTPRIMITIVES_STUB_LIB} /MACHINE:X64
+        COMMAND lib /DEF:${CMAKE_CURRENT_SOURCE_DIR}/bcryptprimitives_extra.def /OUT:${BCRYPTPRIMITIVES_STUB_LIB} /MACHINE:${LIB_MACHINE}
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/bcryptprimitives_extra.def
         VERBATIM
     )
@@ -173,10 +181,10 @@ if(WIN32)
     # - ntdll: Nt* and Rtl* used by deps
     # - bcryptprimitives_extra.lib: import for ProcessPrng
     target_link_libraries(aic-sdk PUBLIC
+        ntdll
         ws2_32
         bcrypt
         Synchronization
-        ntdll
         ${BCRYPTPRIMITIVES_STUB_LIB}
     )
 endif()
