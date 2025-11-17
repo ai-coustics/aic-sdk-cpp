@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.9.0 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.9.1 LANGUAGES C CXX)
 
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
 option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
@@ -8,11 +8,12 @@ option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 # Map of supported platforms with their triplets, archive extensions, and hashes
 set(AIC_SDK_PLATFORMS
     # triplet|archive_ext|hash
-    "aarch64-apple-darwin|tar.gz|ef843628e648624b4253ae2160be32f1564e56b15868cdfcc879c76e5ae7da41"
-    "aarch64-unknown-linux-gnu|tar.gz|ee7f297e75157038c6faf75f7eedabf1e5d1a85ef282378c5f124a1855896161"
-    "x86_64-apple-darwin|tar.gz|86a0612c09b45e29229ec00891e5768551dec3379b824313b30df38013eed05b"
-    "x86_64-pc-windows-msvc|zip|24832b4aeff47abe14856c2ac36215e3a6fab19428f694fa3fb79b41ff2fd990"
-    "x86_64-unknown-linux-gnu|tar.gz|ae6ade43674ea112c1a5cb307938b0da2cd1d9abae1e001ee6d2d4fe3843e3e7"
+    "aarch64-apple-darwin|tar.gz|8ab0b43ffbd1f5abc9b1aa87cbd69426c0b8dff6286a67d731e1c3ddd07618ff"
+    "aarch64-pc-windows-msvc|zip|ffcf38ab5d626f771f6d1d903ebe17c0cef4a06b4d2f63b13360a31ca2d95e3a"
+    "aarch64-unknown-linux-gnu|tar.gz|da227b36b8dcd3ca864b991e6cf87f16e70e59cd80569eaf089d944302fce780"
+    "x86_64-apple-darwin|tar.gz|e6a1b1bde5bd59e7ba56850eb0e080838019f36a5281617778143347c182b42e"
+    "x86_64-pc-windows-msvc|zip|0ad821138251997a1fb5fece333d20c6fcde3265865922dfa0d81d1a1c9b89ac"
+    "x86_64-unknown-linux-gnu|tar.gz|2b1ea87b58736394aab429c8f6bc308499b9a38a4f165962e6cba87081889adc"
 )
 
 # Parse platform configuration into individual variables
@@ -43,7 +44,9 @@ function(get_aic_sdk_triplet out)
             message(FATAL_ERROR "Unsupported Linux arch: ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+            set(t "aarch64-pc-windows-msvc")
+        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
             set(t "x86_64-pc-windows-msvc")
         else()
             message(FATAL_ERROR "Unsupported Windows arch: ${CMAKE_SYSTEM_PROCESSOR}")
@@ -152,9 +155,39 @@ endif()
 
 # Add required system libraries on Windows
 if(WIN32)
+    # Provide import lib for ProcessPrng which is exported by bcryptprimitives.dll
+    # The Windows SDK does not ship an import lib for it. We synthesize one
+    # from a .def file and make aic-sdk depend on it, so the file exists
+    # when consumers link.
+    set(BCRYPTPRIMITIVES_STUB_LIB ${CMAKE_CURRENT_BINARY_DIR}/bcryptprimitives_extra.lib)
+
+    # Determine machine architecture for lib.exe
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+        set(LIB_MACHINE "ARM64")
+    else()
+        set(LIB_MACHINE "X64")
+    endif()
+
+    add_custom_command(
+        OUTPUT ${BCRYPTPRIMITIVES_STUB_LIB}
+        COMMAND lib /DEF:${CMAKE_CURRENT_SOURCE_DIR}/bcryptprimitives_extra.def /OUT:${BCRYPTPRIMITIVES_STUB_LIB} /MACHINE:${LIB_MACHINE}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/bcryptprimitives_extra.def
+        VERBATIM
+    )
+    add_custom_target(bcryptprimitives_stub ALL DEPENDS ${BCRYPTPRIMITIVES_STUB_LIB})
+    add_dependencies(aic-sdk bcryptprimitives_stub)
+
+    # Link standard Windows SDK libs required by the C SDK
+    # - ws2_32: networking
+    # - bcrypt: crypto primitives
+    # - Synchronization: WaitOnAddress/WakeByAddress*
+    # - ntdll: Nt* and Rtl* used by deps
+    # - bcryptprimitives_extra.lib: import for ProcessPrng
     target_link_libraries(aic-sdk PUBLIC
         ntdll
         ws2_32
         bcrypt
+        Synchronization
+        ${BCRYPTPRIMITIVES_STUB_LIB}
     )
 endif()

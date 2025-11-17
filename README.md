@@ -26,7 +26,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.9.0
+        GIT_TAG        0.9.1
         GIT_SHALLOW    TRUE
     )
 FetchContent_MakeAvailable(aic_sdk)
