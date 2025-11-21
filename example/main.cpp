@@ -112,8 +112,7 @@ int main()
     }
 
     // Check if speech is detected after processing
-    bool speech_detected = false;
-    vad_err = vad->is_speech_detected(speech_detected);
+    bool speech_detected = vad->is_speech_detected();
     if (vad_err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to check speech detection\n";
