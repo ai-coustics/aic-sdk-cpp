@@ -443,14 +443,15 @@ class AicVad
      * @note If the backing model stops being processed, the VAD will not update
      *       its speech detection prediction.
      *
-     * @param value Output parameter that receives the VAD prediction
-     * @return ErrorCode::Success if prediction retrieved successfully,
-     *         ErrorCode::NullPointer if value is null
+     * @return The VAD prediction (true if speech detected, false otherwise)
      */
-    ErrorCode is_speech_detected(bool& value) const
+    bool is_speech_detected() const
     {
+        bool value = false;
         ::AicErrorCode rc = aic_vad_is_speech_detected(vad_.get(), &value);
-        return to_cpp(rc);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
     }
 
     /**
