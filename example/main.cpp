@@ -87,13 +87,6 @@ int main()
         return 1;
     }
 
-    err = model->set_parameter(aic::EnhancementParameter::NoiseGateEnable, 1.0f);
-    if (err != aic::ErrorCode::Success)
-    {
-        std::cerr << "Failed to set noise gate enable\n";
-        return 1;
-    }
-
     // Test both interleaved and planar processing
     std::vector<float> buffer(num_frames * num_chans, 0.1f);
 
@@ -131,11 +124,9 @@ int main()
     // Get all parameter values to verify they were set correctly
     float enhancement_level = model->get_parameter(aic::EnhancementParameter::EnhancementLevel);
     float voice_gain        = model->get_parameter(aic::EnhancementParameter::VoiceGain);
-    float noise_gate        = model->get_parameter(aic::EnhancementParameter::NoiseGateEnable);
 
     std::cout << "Enhancement level: " << enhancement_level << "\n";
     std::cout << "Voice gain: " << voice_gain << "\n";
-    std::cout << "Noise gate enabled: " << noise_gate << "\n";
 
     model->reset();
 

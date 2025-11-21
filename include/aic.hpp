@@ -26,6 +26,8 @@ enum class ErrorCode : int
     AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
     /// Audio buffer configuration differs from the one provided during initialization.
     AudioConfigMismatch = AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH,
+    /// The requested parameter is read-only for this model type and cannot be modified.
+    ParameterFixed = AIC_ERROR_CODE_PARAMETER_FIXED,
     /// SDK key was not authorized or process failed to report usage. Check if you have internet
     /// connection.
     EnhancementNotAllowed = AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED,
@@ -42,22 +44,26 @@ enum class ErrorCode : int
 /// Available model types for audio enhancement
 enum class ModelType : int
 {
-    /// Native: 48 kHz, 480 frames, 30ms latency
+    /// Native: 48 kHz, 480 frames, 30 ms latency
     Quail_L48 = AIC_MODEL_TYPE_QUAIL_L48,
-    /// Native: 16 kHz, 160 frames, 30ms latency
+    /// Native: 16 kHz, 160 frames, 30 ms latency
     Quail_L16 = AIC_MODEL_TYPE_QUAIL_L16,
-    /// Native: 8 kHz, 80 frames, 30ms latency
+    /// Native: 8 kHz, 80 frames, 30 ms latency
     Quail_L8 = AIC_MODEL_TYPE_QUAIL_L8,
-    /// Native: 48 kHz, 480 frames, 30ms latency
+    /// Native: 48 kHz, 480 frames, 30 ms latency
     Quail_S48 = AIC_MODEL_TYPE_QUAIL_S48,
-    /// Native: 16 kHz, 160 frames, 30ms latency
+    /// Native: 16 kHz, 160 frames, 30 ms latency
     Quail_S16 = AIC_MODEL_TYPE_QUAIL_S16,
-    /// Native: 8 kHz, 80 frames, 30ms latency
+    /// Native: 8 kHz, 80 frames, 30 ms latency
     Quail_S8 = AIC_MODEL_TYPE_QUAIL_S8,
-    /// Native: 48 kHz, 480 frames, 10ms latency
+    /// Native: 48 kHz, 480 frames, 10 ms latency
     Quail_XS = AIC_MODEL_TYPE_QUAIL_XS,
-    /// Native: 48 kHz, 480 frames, 10ms latency
+    /// Native: 48 kHz, 480 frames, 10 ms latency
     Quail_XXS = AIC_MODEL_TYPE_QUAIL_XXS,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// that uses fixed enhancement parameters that cannot be changed during runtime.
+    /// Native: 16 kHz, 160 frames, 30 ms latency
+    Quail_STT = AIC_MODEL_TYPE_QUAIL_STT,
 };
 
 /// Configurable parameters for audio enhancement
@@ -69,8 +75,6 @@ enum class EnhancementParameter : int
     EnhancementLevel = AIC_ENHANCEMENT_PARAMETER_ENHANCEMENT_LEVEL,
     /// Voice gain multiplier (0.1-4.0): linear amplitude multiplier
     VoiceGain = AIC_ENHANCEMENT_PARAMETER_VOICE_GAIN,
-    /// Noise gate enable (0.0/1.0): 0.0=disabled, 1.0=enabled
-    NoiseGateEnable = AIC_ENHANCEMENT_PARAMETER_NOISE_GATE_ENABLE,
 };
 
 /// Configurable parameters for voice activity detection (VAD)
