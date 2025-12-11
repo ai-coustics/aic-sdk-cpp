@@ -61,16 +61,25 @@ enum class ModelType : int
     /// Native: 48 kHz, 480 frames, 10 ms latency
     Quail_XXS = AIC_MODEL_TYPE_QUAIL_XXS,
     /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
-    /// that uses fixed enhancement parameters that cannot be changed during runtime.
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
     /// Native: 16 kHz, 160 frames, 30 ms latency
     Quail_STT_L16 = AIC_MODEL_TYPE_QUAIL_STT_L16,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
     /// Native: 8 kHz, 80 frames, 30 ms latency
     Quail_STT_L8 = AIC_MODEL_TYPE_QUAIL_STT_L8,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
     /// Native: 16 kHz, 160 frames, 30 ms latency
     Quail_STT_S16 = AIC_MODEL_TYPE_QUAIL_STT_S16,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
     /// Native: 8 kHz, 80 frames, 30 ms latency
     Quail_STT_S8 = AIC_MODEL_TYPE_QUAIL_STT_S8,
-    /// Native: 16 kHz, 160 frames, 30 ms latency, variable frame size
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// purpose-built to isolate and elevate the foreground speaker while suppressing both
+    /// interfering speech and background noise.
+    /// Native: 16 kHz, 160 frames, 30 ms latency
     Quail_VF_STT_L16 = AIC_MODEL_TYPE_QUAIL_VF_STT_L16,
 };
 
