@@ -26,7 +26,7 @@ AicModel::create(ModelType model_type, const std::string& license_key)
 }
 
 std::pair<std::unique_ptr<AicVad>, ErrorCode>
-AicVad::create(const AicModel& model)
+AicVad::create(AicModel& model)
 {
     ::AicVad*      raw_vad = nullptr;
     ::AicErrorCode rc      = aic_vad_create(&raw_vad, model.get_c_model());

@@ -1,31 +1,33 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.10.0 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.11.0 LANGUAGES C CXX)
 
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
 option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
 
 # -------- SDK Platform Configuration --------
-# Map of supported platforms with their triplets, archive extensions, and hashes
-set(AIC_SDK_PLATFORMS
-    # triplet|archive_ext|hash
-    "aarch64-apple-darwin|tar.gz|e677d07de9c7558115a695ca8e9a315db1d19093c191bbd4f57eaf3fa9ad9e30"
-    "aarch64-pc-windows-msvc|zip|c07d019646f5979ea291f8a6df7f4797ceafa3e6efac8b1c82229619d72599da"
-    "aarch64-unknown-linux-gnu|tar.gz|a1cd0afc8a8c7e2cefcd10f6c57fd859bdf7a3d037149c36658df287c8946af1"
-    "x86_64-apple-darwin|tar.gz|f785b0fabe955b7645903e81049062832c6b035f916d5e06584fb85ac1688a9b"
-    "x86_64-pc-windows-msvc|zip|f5aa1e1513276b663406b2593f958c30263a6d31220a29a36ae11707b449da94"
-    "x86_64-unknown-linux-gnu|tar.gz|e046098dd67b10516033b2a7da5c78703bb604c5034c9df371b0fc9fe800597b"
-)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/checksum.txt" AIC_SDK_CHECKSUMS)
 
-# Parse platform configuration into individual variables
-foreach(platform_config ${AIC_SDK_PLATFORMS})
-    string(REPLACE "|" ";" platform_parts "${platform_config}")
-    list(GET platform_parts 0 triplet)
-    list(GET platform_parts 1 archive_ext)
-    list(GET platform_parts 2 hash)
+foreach(line ${AIC_SDK_CHECKSUMS})
+    # Parse line: <hash>  <filename>
+    string(REGEX MATCH "^([a-f0-9]+)[ \t]+(.+)$" _ "${line}")
+    set(hash "${CMAKE_MATCH_1}")
+    set(filename "${CMAKE_MATCH_2}")
 
-    set(AIC_SDK_HASH_${triplet} "${hash}")
-    set(AIC_SDK_ARCHIVE_EXT_${triplet} "${archive_ext}")
+    # Parse filename: aic-sdk-<triplet>-<version>.<ext>
+    if("${filename}" MATCHES "aic-sdk-(.+)-([0-9]+\\.[0-9]+\\.[0-9]+)\\.(tar\\.gz|zip)")
+        set(triplet "${CMAKE_MATCH_1}")
+        set(version "${CMAKE_MATCH_2}")
+        set(ext "${CMAKE_MATCH_3}")
+
+        set(AIC_SDK_HASH_${triplet} "${hash}")
+        set(AIC_SDK_ARCHIVE_EXT_${triplet} "${ext}")
+        set(AIC_SDK_VERSION "${version}")
+    endif()
 endforeach()
+
+if(NOT AIC_SDK_VERSION)
+    message(FATAL_ERROR "Could not determine AIC SDK version from checksum.txt")
+endif()
 
 # -------- Platform / filename helpers --------
 function(get_aic_sdk_triplet out)
@@ -75,7 +77,7 @@ else()
 
     include(FetchContent)
     set(AIC_SDK_URL
-        "https://github.com/ai-coustics/aic-sdk-c/releases/download/${PROJECT_VERSION}/aic-sdk-${AIC_TRIPLET}-${PROJECT_VERSION}.${AIC_ARCHIVE_EXT}")
+        "https://github.com/ai-coustics/aic-sdk-c/releases/download/${AIC_SDK_VERSION}/aic-sdk-${AIC_TRIPLET}-${AIC_SDK_VERSION}.${AIC_ARCHIVE_EXT}")
 
     set(AIC_SDK_HASH "${AIC_SDK_HASH_${AIC_TRIPLET}}")
 
