@@ -61,9 +61,26 @@ enum class ModelType : int
     /// Native: 48 kHz, 480 frames, 10 ms latency
     Quail_XXS = AIC_MODEL_TYPE_QUAIL_XXS,
     /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
-    /// that uses fixed enhancement parameters that cannot be changed during runtime.
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
     /// Native: 16 kHz, 160 frames, 30 ms latency
-    Quail_STT = AIC_MODEL_TYPE_QUAIL_STT,
+    Quail_STT_L16 = AIC_MODEL_TYPE_QUAIL_STT_L16,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
+    /// Native: 8 kHz, 80 frames, 30 ms latency
+    Quail_STT_L8 = AIC_MODEL_TYPE_QUAIL_STT_L8,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
+    /// Native: 16 kHz, 160 frames, 30 ms latency
+    Quail_STT_S16 = AIC_MODEL_TYPE_QUAIL_STT_S16,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// designed specifically to improve STT accuracy across unpredictable, diverse and challenging environments.
+    /// Native: 8 kHz, 80 frames, 30 ms latency
+    Quail_STT_S8 = AIC_MODEL_TYPE_QUAIL_STT_S8,
+    /// Special model optimized for human-to-machine interaction (e.g., voice agents, speech-to-text)
+    /// purpose-built to isolate and elevate the foreground speaker while suppressing both
+    /// interfering speech and background noise.
+    /// Native: 16 kHz, 160 frames, 30 ms latency
+    Quail_VF_STT_L16 = AIC_MODEL_TYPE_QUAIL_VF_STT_L16,
 };
 
 /// Configurable parameters for audio enhancement
@@ -244,6 +261,26 @@ class AicModel
     {
         ::AicErrorCode rc =
             aic_model_process_interleaved(model_.get(), audio, num_channels, num_frames);
+        return to_cpp(rc);
+    }
+
+    /**
+     * Processes audio with sequential channel data (non-interleaved).
+     *
+     * Enhances speech in the provided audio buffer in-place.
+     * The buffer must contain all channels sequentially (e.g. ch0...ch0, ch1...ch1).
+     *
+     * @param audio Audio buffer containing sequential channel data. Must not be null and of size num_channels * num_frames.
+     * @param num_channels Number of channels (must match initialization)
+     * @param num_frames Number of frames (must match initialization)
+     * @return ErrorCode::Success if audio processed successfully,
+     *         ErrorCode::NotInitialized if model has not been initialized,
+     *         ErrorCode::AudioConfigMismatch if channel or frame count mismatch
+     *         ErrorCode::EnhancementNotAllowed if backend blocks or could not be contacted
+     */
+    ErrorCode process_sequential(float* audio, uint16_t num_channels, size_t num_frames)
+    {
+        ::AicErrorCode rc = aic_model_process_sequential(model_.get(), audio, num_channels, num_frames);
         return to_cpp(rc);
     }
 
@@ -429,7 +466,7 @@ class AicVad
      *         If successful, the pointer is valid and error is ErrorCode::Success.
      *         If failed, the pointer is null and error indicates the reason.
      */
-    static std::pair<std::unique_ptr<AicVad>, ErrorCode> create(const AicModel& model);
+    static std::pair<std::unique_ptr<AicVad>, ErrorCode> create(AicModel& model);
 
     // Disable copy constructor and assignment
     AicVad(const AicVad&)            = delete;
