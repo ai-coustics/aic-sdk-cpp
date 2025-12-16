@@ -1,17 +1,7 @@
-# Release Notes
-
 ### Features
 
-- **Quail Voice Focus STT** (`Quail_VF_STT_L16`): Purpose-built to isolate and elevate the foreground speaker while suppressing both interfering speech and background noise.
-- **New Quail STT model variants**: Added `Quail_STT_L8`, `Quail_STT_S16`, and `Quail_STT_S8` to provide additional model size and sample rate options.
-- **Sequential channel processing**: Added `process_sequential` method for processing sequential channel data in a single buffer.
-
+- **New VAD parameter `VadParameter::MinimumSpeechDuration`**: Controls for how long speech needs to be present in the audio signal before the VAD considers it speech (0.0 - 1.0 seconds).
 
 ### Breaking Changes
 
-- **Renamed `Quail_STT` to `Quail_STT_L16`**: The original Quail STT model type has been renamed for consistency with the new model variants.
-- **Changed `AicVad::create` signature**: The `model` parameter is no longer `const`.
-
-### Fixes
-
-- **VAD compatibility with enhancement bypass**: VAD now works correctly when `EnhancementLevel` is set to 0 or `Bypass` is enabled (previously non-functional in these cases).
+- **Replaced VAD parameter `VadParameter::LookbackBufferSize` with `VadParameter::SpeechHoldDuration`**: The new parameter controls for how long the VAD continues to detect speech after the audio signal no longer contains speech (0.0 to 20x model window length in seconds).
