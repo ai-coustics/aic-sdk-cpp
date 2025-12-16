@@ -26,7 +26,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.11.0
+        GIT_TAG        0.12.0
         GIT_SHALLOW    TRUE
     )
 FetchContent_MakeAvailable(aic_sdk)
@@ -103,7 +103,7 @@ The ai-coustics Speech Enhancement SDK is available in multiple programming lang
 | **C** | [`aic-sdk-c`](https://github.com/ai-coustics/aic-sdk-c) | Core C-Interface |
 | **Python** | [`aic-sdk-py`](https://github.com/ai-coustics/aic-sdk-py) | Idiomatic Python interface |
 | **Rust** | [`aic-sdk-rs`](https://github.com/ai-coustics/aic-sdk-rs) | Safe Rust bindings with zero-cost abstractions |
-| **JavaScript/TypeScript** | [`aic-sdk-node`](https://github.com/ai-coustics/aic-sdk-node) | Native bindings for Node.js applications |
+| **JavaScript** | [`aic-sdk-node`](https://github.com/ai-coustics/aic-sdk-node) | Native bindings for Node.js applications |
 | **Web (WASM)** | [`aic-sdk-wasm`](https://github.com/ai-coustics/aic-sdk-wasm) | WebAssembly build for browser applications |
 
 All SDKs provide the same core functionality with language-specific optimizations and idioms.

@@ -52,10 +52,10 @@ int main()
     }
 
     // Set VAD parameters
-    vad_err = vad->set_parameter(aic::VadParameter::LookbackBufferSize, 5.0f);
+    vad_err = vad->set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
     if (vad_err != aic::ErrorCode::Success)
     {
-        std::cerr << "Failed to set VAD lookback buffer size\n";
+        std::cerr << "Failed to set VAD speech hold duration\n";
         return 1;
     }
 
@@ -67,9 +67,9 @@ int main()
     }
 
     // Get VAD parameter values
-    float lookback = vad->get_parameter(aic::VadParameter::LookbackBufferSize);
+    float lookback = vad->get_parameter(aic::VadParameter::SpeechHoldDuration);
     float sensitivity = vad->get_parameter(aic::VadParameter::Sensitivity);
-    std::cout << "VAD lookback buffer size: " << lookback << "\n";
+    std::cout << "VAD speech hold duration: " << lookback << "\n";
     std::cout << "VAD sensitivity: " << sensitivity << "\n";
 
     // Test all available parameters

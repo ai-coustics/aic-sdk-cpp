@@ -97,10 +97,12 @@ enum class EnhancementParameter : int
 /// Configurable parameters for voice activity detection (VAD)
 enum class VadParameter : int
 {
-    /// Controls the lookback buffer size used in the Voice Activity Detector. (1.0-20.0)
-    LookbackBufferSize = AIC_VAD_PARAMETER_LOOKBACK_BUFFER_SIZE,
+    /// Controls for how long the VAD continues to detect speech after the audio signal no longer contains speech. (0.0 to 20x model window length in seconds)
+    SpeechHoldDuration = AIC_VAD_PARAMETER_SPEECH_HOLD_DURATION,
     /// Controls the sensitivity (energy threshold) of the VAD. (1.0-15.0)
     Sensitivity = AIC_VAD_PARAMETER_SENSITIVITY,
+    /// Controls for how long speech needs to be present in the audio signal before the VAD considers it speech (0.0 - 1.0 seconds).
+    MinimumSpeechDuration = AIC_VAD_PARAMETER_MINIMUM_SPEECH_DURATION,
 };
 
 // ---------------------------
