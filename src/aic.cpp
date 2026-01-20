@@ -5,8 +5,33 @@ extern "C" void aic_set_sdk_wrapper_id(uint32_t id);
 namespace aic
 {
 
-std::pair<std::unique_ptr<AicModel>, ErrorCode>
-AicModel::create(ModelType model_type, const std::string& license_key)
+Result<Model> Model::create_from_file(const std::string& file_path)
+{
+    ::AicModel*    raw_model = nullptr;
+    ::AicErrorCode rc        = aic_model_create_from_file(&raw_model, file_path.c_str());
+
+    if (rc == AIC_ERROR_CODE_SUCCESS)
+    {
+        return Result<Model>(Model(raw_model), ErrorCode::Success);
+    }
+
+    return Result<Model>(Model(), to_cpp(rc));
+}
+
+Result<Model> Model::create_from_buffer(const uint8_t* buffer, size_t buffer_len)
+{
+    ::AicModel*    raw_model = nullptr;
+    ::AicErrorCode rc        = aic_model_create_from_buffer(&raw_model, buffer, buffer_len);
+
+    if (rc == AIC_ERROR_CODE_SUCCESS)
+    {
+        return Result<Model>(Model(raw_model), ErrorCode::Success);
+    }
+
+    return Result<Model>(Model(), to_cpp(rc));
+}
+
+Result<Processor> Processor::create(const Model& model, const std::string& license_key)
 {
     static const bool wrapper_id_set = []() {
         aic_set_sdk_wrapper_id(1);
@@ -14,29 +39,42 @@ AicModel::create(ModelType model_type, const std::string& license_key)
     }();
     (void) wrapper_id_set;
 
-    ::AicModel*    raw_model = nullptr;
-    ::AicErrorCode rc        = aic_model_create(&raw_model, to_c(model_type), license_key.c_str());
+    ::AicProcessor* raw_processor = nullptr;
+    ::AicErrorCode  rc =
+        aic_processor_create(&raw_processor, model.get_c_model(), license_key.c_str());
 
     if (rc == AIC_ERROR_CODE_SUCCESS)
     {
-        return {std::unique_ptr<AicModel>(new AicModel(raw_model)), ErrorCode::Success};
+        return Result<Processor>(Processor(raw_processor), ErrorCode::Success);
     }
 
-    return {std::unique_ptr<AicModel>(), to_cpp(rc)};
+    return Result<Processor>(Processor(), to_cpp(rc));
 }
 
-std::pair<std::unique_ptr<AicVad>, ErrorCode>
-AicVad::create(AicModel& model)
+Result<ProcessorContext> Processor::create_context() const
 {
-    ::AicVad*      raw_vad = nullptr;
-    ::AicErrorCode rc      = aic_vad_create(&raw_vad, model.get_c_model());
+    ::AicProcessorContext* raw_context = nullptr;
+    ::AicErrorCode rc = aic_processor_context_create(&raw_context, processor_);
 
     if (rc == AIC_ERROR_CODE_SUCCESS)
     {
-        return {std::unique_ptr<AicVad>(new AicVad(raw_vad)), ErrorCode::Success};
+        return Result<ProcessorContext>(ProcessorContext(raw_context), ErrorCode::Success);
     }
 
-    return {std::unique_ptr<AicVad>(), to_cpp(rc)};
+    return Result<ProcessorContext>(ProcessorContext(), to_cpp(rc));
+}
+
+Result<VadContext> Processor::create_vad_context() const
+{
+    ::AicVadContext* raw_context = nullptr;
+    ::AicErrorCode   rc          = aic_vad_context_create(&raw_context, processor_);
+
+    if (rc == AIC_ERROR_CODE_SUCCESS)
+    {
+        return Result<VadContext>(VadContext(raw_context), ErrorCode::Success);
+    }
+
+    return Result<VadContext>(VadContext(), to_cpp(rc));
 }
 
 } // namespace aic
