@@ -57,11 +57,11 @@ struct Result
     T         value;
     ErrorCode error;
 
-    // Default-constructs the value and sets a non-success error as a safe sentinel.
+    // Default constructor: default-constructs the value and sets a non-success error as a safe sentinel
     Result() : value(), error(ErrorCode::InternalError) {}
-    // Constructs a Result by copying the value and storing the error code.
+    // Constructor: copies the value and stores the error code
     Result(const T& v, ErrorCode e) : value(v), error(e) {}
-    // Constructs a Result by moving the value and storing the error code.
+    // Constructor: moves the value and stores the error code
     Result(T&& v, ErrorCode e) : value(std::move(v)), error(e) {}
 
     bool ok() const { return error == ErrorCode::Success; }
@@ -151,7 +151,7 @@ class Model
     ::AicModel* model_;
 
   public:
-    // Releases the underlying SDK model handle if one is owned.
+    // Destructor: releases the underlying SDK model handle if one is owned
     ~Model()
     {
         if (model_)
@@ -160,13 +160,13 @@ class Model
         }
     }
 
-    // Transfers ownership of the model handle from another Model (the source becomes empty).
+    // Move constructor: the handle from the source Model gets moved into the new Model
     Model(Model&& other) noexcept : model_(other.model_)
     {
         other.model_ = nullptr;
     }
 
-    // Replaces the currently owned handle with another Model's handle, cleaning up the old one.
+    // Move assignment: replaces the currently owned handle with the source handle and clears the source
     Model& operator=(Model&& other) noexcept
     {
         if (this != &other)
@@ -181,9 +181,10 @@ class Model
         return *this;
     }
 
-    // Copying is disabled because this wrapper has unique ownership of the handle.
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
     Model(const Model&)            = delete;
-    // Copy assignment is disabled for the same reason as the copy constructor.
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     Model& operator=(const Model&) = delete;
 
     // Internal accessor for C API interop
@@ -254,7 +255,7 @@ class ProcessorContext
     ::AicProcessorContext* context_;
 
   public:
-    // Releases the underlying SDK processor context handle if one is owned.
+    // Destructor: releases the underlying SDK processor context handle if one is owned
     ~ProcessorContext()
     {
         if (context_)
@@ -263,13 +264,13 @@ class ProcessorContext
         }
     }
 
-    // Transfers ownership of the context handle from another ProcessorContext (the source becomes empty).
+    // Move constructor: the handle from the source ProcessorContext gets moved into the new ProcessorContext
     ProcessorContext(ProcessorContext&& other) noexcept : context_(other.context_)
     {
         other.context_ = nullptr;
     }
 
-    // Replaces the currently owned handle with another context handle, cleaning up the old one.
+    // Move assignment: replaces the currently owned handle with the source handle and clears the source
     ProcessorContext& operator=(ProcessorContext&& other) noexcept
     {
         if (this != &other)
@@ -284,9 +285,10 @@ class ProcessorContext
         return *this;
     }
 
-    // Copying is disabled because this wrapper has unique ownership of the handle.
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
     ProcessorContext(const ProcessorContext&)            = delete;
-    // Copy assignment is disabled for the same reason as the copy constructor.
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     ProcessorContext& operator=(const ProcessorContext&) = delete;
 
     /**
@@ -332,12 +334,13 @@ class ProcessorContext
     }
 
   private:
-    // Allows Processor to construct ProcessorContext instances from raw handles.
+    // Friend declaration: allows Processor to construct ProcessorContext instances from raw handles
     friend class Processor;
 
-    // Creates an empty context wrapper for internal use when creation fails.
+    // Constructor: creates an empty context wrapper for internal use when creation fails
     ProcessorContext() : context_(nullptr) {}
-    // Wraps an existing SDK processor context handle; this instance becomes responsible for destroying it.
+    
+    // Constructor: wraps an existing SDK processor context handle; this instance becomes responsible for destroying it
     explicit ProcessorContext(::AicProcessorContext* context) : context_(context) {}
 
 };
@@ -352,7 +355,7 @@ class VadContext
     ::AicVadContext* context_;
 
   public:
-    // Releases the underlying SDK VAD context handle if one is owned.
+    // Destructor: releases the underlying SDK VAD context handle if one is owned
     ~VadContext()
     {
         if (context_)
@@ -361,13 +364,13 @@ class VadContext
         }
     }
 
-    // Transfers ownership of the context handle from another VadContext (the source becomes empty).
+    // Move constructor: the handle from the source VadContext gets moved into the new VadContext
     VadContext(VadContext&& other) noexcept : context_(other.context_)
     {
         other.context_ = nullptr;
     }
 
-    // Replaces the currently owned handle with another context handle, cleaning up the old one.
+    // Move assignment: replaces the currently owned handle with the source handle and clears the source
     VadContext& operator=(VadContext&& other) noexcept
     {
         if (this != &other)
@@ -382,9 +385,10 @@ class VadContext
         return *this;
     }
 
-    // Copying is disabled because this wrapper has unique ownership of the handle.
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
     VadContext(const VadContext&)            = delete;
-    // Copy assignment is disabled for the same reason as the copy constructor.
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     VadContext& operator=(const VadContext&) = delete;
 
     /**
@@ -421,12 +425,12 @@ class VadContext
     }
 
   private:
-    // Allows Processor to construct VadContext instances from raw handles.
+    // Friend declaration: allows Processor to construct VadContext instances from raw handles
     friend class Processor;
 
-    // Creates an empty VAD context wrapper for internal use when creation fails.
+    // Constructor: creates an empty VAD context wrapper for internal use when creation fails
     VadContext() : context_(nullptr) {}
-    // Wraps an existing SDK VAD context handle; this instance becomes responsible for destroying it.
+    // Constructor: wraps an existing SDK VAD context handle; this instance becomes responsible for destroying it
     explicit VadContext(::AicVadContext* context) : context_(context) {}
 
 };
@@ -441,7 +445,7 @@ class Processor
     ::AicProcessor* processor_;
 
   public:
-    // Releases the underlying SDK processor handle if one is owned.
+    // Destructor: releases the underlying SDK processor handle if one is owned
     ~Processor()
     {
         if (processor_)
@@ -450,13 +454,13 @@ class Processor
         }
     }
 
-    // Transfers ownership of the processor handle from another Processor (the source becomes empty).
+    // Move constructor: the handle from the source Processor gets moved into the new Processor
     Processor(Processor&& other) noexcept : processor_(other.processor_)
     {
         other.processor_ = nullptr;
     }
 
-    // Replaces the currently owned handle with another processor handle, cleaning up the old one.
+    // Move assignment: replaces the currently owned handle with the source handle and clears the source
     Processor& operator=(Processor&& other) noexcept
     {
         if (this != &other)
@@ -471,9 +475,10 @@ class Processor
         return *this;
     }
 
-    // Copying is disabled because this wrapper has unique ownership of the handle.
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
     Processor(const Processor&)            = delete;
-    // Copy assignment is disabled for the same reason as the copy constructor.
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     Processor& operator=(const Processor&) = delete;
 
     /**
@@ -530,9 +535,9 @@ class Processor
     Result<VadContext> create_vad_context() const;
 
   private:
-    // Creates an empty Processor wrapper for internal use when creation fails.
+    // Constructor: creates an empty Processor wrapper for internal use when creation fails
     Processor() : processor_(nullptr) {}
-    // Wraps an existing SDK processor handle; this instance becomes responsible for destroying it.
+    // Constructor: wraps an existing SDK processor handle; this instance becomes responsible for destroying it
     explicit Processor(::AicProcessor* processor) : processor_(processor) {}
 
 };
