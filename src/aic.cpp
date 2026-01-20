@@ -40,8 +40,8 @@ Result<Processor> Processor::create(const Model& model, const std::string& licen
     (void) wrapper_id_set;
 
     ::AicProcessor* raw_processor = nullptr;
-    ::AicErrorCode  rc =
-        aic_processor_create(&raw_processor, model.get_c_model(), license_key.c_str());
+    ::AicErrorCode rc =
+        aic_processor_create(&raw_processor, model.model_, license_key.c_str());
 
     if (rc == AIC_ERROR_CODE_SUCCESS)
     {

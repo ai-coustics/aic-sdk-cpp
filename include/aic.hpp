@@ -187,11 +187,6 @@ class Model
     // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     Model& operator=(const Model&) = delete;
 
-    // Internal accessor for C API interop
-    ::AicModel* get_c_model() const { return model_; }
-
-    bool is_valid() const { return model_ != nullptr; }
-
     /**
      * Creates a new model instance from a file path.
      */
@@ -238,6 +233,9 @@ class Model
     }
 
   private:
+    // Friend declaration: allows Processor to access the raw model handle for creation.
+    friend class Processor;
+
     // Creates an empty Model wrapper for internal use when creation fails.
     Model() : model_(nullptr) {}
     // Wraps an existing SDK model handle; this instance becomes responsible for destroying it.
