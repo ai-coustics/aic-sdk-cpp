@@ -51,18 +51,18 @@ int main() {
 
     // Create a new model from a file path
     aic::Result<aic::Model> model_result = aic::Model::create_from_file("/path/to/model.aicmodel");
-    aic::Model model = std::move(model_result.value);
+    aic::Model model = model_result.take();
 
     // Create a processor and initialize with your audio settings
     auto processor_result = aic::Processor::create(model, license);
-    aic::Processor processor = std::move(processor_result.value);
+    aic::Processor processor = processor_result.take();
     aic::ProcessorConfig config = aic::ProcessorConfig::optimal(model).with_num_channels(2);
     processor->initialize(config.sample_rate, config.num_channels, config.num_frames,
                           config.allow_variable_frames);
 
     // Configure enhancement parameters via a processor context
     auto ctx_result = processor.create_context();
-    aic::ProcessorContext ctx = std::move(ctx_result.value);
+    aic::ProcessorContext ctx = ctx_result.take();
     ctx.set_parameter(aic::ProcessorParameter::EnhancementLevel, 0.7f);
 
     // Process audio (interleaved version available as well)

@@ -48,7 +48,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::Model model = std::move(model_result.value);
+    aic::Model model = model_result.take();
     aic::Model& model_ref = model;
     auto config = aic::ProcessorConfig::optimal(model_ref).with_num_channels(1);
 
@@ -61,7 +61,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::Processor processor = std::move(processor_result.value);
+    aic::Processor processor = processor_result.take();
     aic::Processor& processor_ref = processor;
     err = processor_ref.initialize(config.sample_rate, config.num_channels, config.num_frames,
                                    config.allow_variable_frames);
@@ -78,7 +78,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::ProcessorContext ctx = std::move(ctx_result.value);
+    aic::ProcessorContext ctx = ctx_result.take();
     aic::ProcessorContext& ctx_ref = ctx;
     size_t output_delay = ctx_ref.get_output_delay();
     std::cout << "Output delay: " << output_delay << " samples\n";
@@ -90,7 +90,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::VadContext vad = std::move(vad_result.value);
+    aic::VadContext vad = vad_result.take();
     aic::VadContext& vad_ref = vad;
     err = vad_ref.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
     if (err != aic::ErrorCode::Success)

@@ -65,6 +65,8 @@ struct Result
     Result(T&& v, ErrorCode e) : value(std::move(v)), error(e) {}
 
     bool ok() const { return error == ErrorCode::Success; }
+    // Helper: returns the contained value by move (useful for move-only types).
+    T take() { return std::move(value); }
 };
 
 /// Configurable parameters for audio enhancement
