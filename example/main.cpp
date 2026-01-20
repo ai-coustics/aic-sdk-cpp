@@ -49,8 +49,7 @@ int main(int argc, char** argv)
     }
 
     aic::Model model = model_result.take();
-    aic::Model& model_ref = model;
-    auto config = aic::ProcessorConfig::optimal(model_ref).with_num_channels(1);
+    auto config = aic::ProcessorConfig::optimal(model).with_num_channels(1);
 
     aic::Result<aic::Processor> processor_result = aic::Processor::create(model_ref, license_key);
     err                                          = processor_result.error;
@@ -62,16 +61,15 @@ int main(int argc, char** argv)
     }
 
     aic::Processor processor = processor_result.take();
-    aic::Processor& processor_ref = processor;
-    err = processor_ref.initialize(config.sample_rate, config.num_channels, config.num_frames,
-                                   config.allow_variable_frames);
+    err = processor.initialize(config.sample_rate, config.num_channels, config.num_frames,
+                               config.allow_variable_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Initialization failed\n";
         return 1;
     }
 
-    aic::Result<aic::ProcessorContext> ctx_result = processor_ref.create_context();
+    aic::Result<aic::ProcessorContext> ctx_result = processor.create_context();
     if (!ctx_result.ok())
     {
         std::cerr << "Processor context creation failed\n";
@@ -79,11 +77,10 @@ int main(int argc, char** argv)
     }
 
     aic::ProcessorContext ctx = ctx_result.take();
-    aic::ProcessorContext& ctx_ref = ctx;
-    size_t output_delay = ctx_ref.get_output_delay();
+    size_t output_delay = ctx.get_output_delay();
     std::cout << "Output delay: " << output_delay << " samples\n";
 
-    aic::Result<aic::VadContext> vad_result = processor_ref.create_vad_context();
+    aic::Result<aic::VadContext> vad_result = processor.create_vad_context();
     if (!vad_result.ok())
     {
         std::cerr << "VAD context creation failed\n";
@@ -91,34 +88,33 @@ int main(int argc, char** argv)
     }
 
     aic::VadContext vad = vad_result.take();
-    aic::VadContext& vad_ref = vad;
-    err = vad_ref.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
+    err = vad.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set VAD speech hold duration\n";
         return 1;
     }
 
-    err = vad_ref.set_parameter(aic::VadParameter::Sensitivity, 8.0f);
+    err = vad.set_parameter(aic::VadParameter::Sensitivity, 8.0f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set VAD sensitivity\n";
         return 1;
     }
 
-    float speech_hold_duration = vad_ref.get_parameter(aic::VadParameter::SpeechHoldDuration);
-    float sensitivity = vad_ref.get_parameter(aic::VadParameter::Sensitivity);
+    float speech_hold_duration = vad.get_parameter(aic::VadParameter::SpeechHoldDuration);
+    float sensitivity = vad.get_parameter(aic::VadParameter::Sensitivity);
     std::cout << "VAD speech hold duration: " << speech_hold_duration << "\n";
     std::cout << "VAD sensitivity: " << sensitivity << "\n";
 
-    err = ctx_ref.set_parameter(aic::ProcessorParameter::EnhancementLevel, 0.8f);
+    err = ctx.set_parameter(aic::ProcessorParameter::EnhancementLevel, 0.8f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set enhancement level\n";
         return 1;
     }
 
-    err = ctx_ref.set_parameter(aic::ProcessorParameter::VoiceGain, 1.2f);
+    err = ctx.set_parameter(aic::ProcessorParameter::VoiceGain, 1.2f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set voice gain\n";
@@ -127,8 +123,8 @@ int main(int argc, char** argv)
 
     std::vector<float> interleaved_buffer(config.num_frames * config.num_channels, 0.1f);
 
-    err = processor_ref.process_interleaved(interleaved_buffer.data(), config.num_channels,
-                                            config.num_frames);
+    err = processor.process_interleaved(interleaved_buffer.data(), config.num_channels,
+                                         config.num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Interleaved processing failed\n";
@@ -143,7 +139,7 @@ int main(int argc, char** argv)
         channel_ptrs[i] = planar_buffers[i].data();
     }
 
-    err = processor_ref.process_planar(channel_ptrs.data(), config.num_channels, config.num_frames);
+    err = processor.process_planar(channel_ptrs.data(), config.num_channels, config.num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Planar processing failed\n";
@@ -151,24 +147,24 @@ int main(int argc, char** argv)
     }
 
     std::vector<float> sequential_buffer(config.num_frames * config.num_channels, 0.1f);
-    err = processor_ref.process_sequential(sequential_buffer.data(), config.num_channels,
-                                           config.num_frames);
+    err = processor.process_sequential(sequential_buffer.data(), config.num_channels,
+                                        config.num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Sequential processing failed\n";
         return 1;
     }
 
-    bool speech_detected = vad_ref.is_speech_detected();
+    bool speech_detected = vad.is_speech_detected();
     std::cout << "Speech detected: " << (speech_detected ? "yes" : "no") << "\n";
 
-    float enhancement_level = ctx_ref.get_parameter(aic::ProcessorParameter::EnhancementLevel);
-    float voice_gain        = ctx_ref.get_parameter(aic::ProcessorParameter::VoiceGain);
+    float enhancement_level = ctx.get_parameter(aic::ProcessorParameter::EnhancementLevel);
+    float voice_gain        = ctx.get_parameter(aic::ProcessorParameter::VoiceGain);
 
     std::cout << "Enhancement level: " << enhancement_level << "\n";
     std::cout << "Voice gain: " << voice_gain << "\n";
 
-    err = ctx_ref.reset();
+    err = ctx.reset();
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Reset failed\n";
