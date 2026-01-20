@@ -145,7 +145,7 @@ class Model
  * @param file_path Filesystem path to the model file (null-terminated string).
  * @return Result containing the Model and an ErrorCode.
  *
- * Possible errors (matches C API):
+ * Possible errors:
  * - ErrorCode::NullPointer
  * - ErrorCode::ModelInvalid
  * - ErrorCode::ModelVersionUnsupported
@@ -166,7 +166,7 @@ class Model
      * @param buffer_len Size of the model buffer in bytes.
      * @return Result containing the Model and an ErrorCode.
      *
-     * Possible errors (matches C API):
+     * Possible errors:
      * - ErrorCode::NullPointer
      * - ErrorCode::ModelInvalid
      * - ErrorCode::ModelVersionUnsupported
@@ -330,7 +330,7 @@ class ProcessorContext
     /**
      * Modifies a processor parameter.
      *
-     * Parameter ranges (see C API):
+     * Parameter ranges:
      * - Bypass: 0.0 or 1.0
      * - EnhancementLevel: 0.0 to 1.0
      * - VoiceGain: 0.1 to 4.0
@@ -453,7 +453,7 @@ class VadContext
     /**
      * Modifies a VAD parameter.
      *
-     * Parameter ranges (see C API):
+     * Parameter ranges:
      * - SpeechHoldDuration: 0.0 to 20x model window length (seconds)
      * - Sensitivity: 1.0 to 15.0
      * - MinimumSpeechDuration: 0.0 to 1.0 (seconds)
@@ -546,7 +546,7 @@ class Processor
      * @param license_key SDK license key (null-terminated string).
      * @return Result containing the Processor and an ErrorCode.
      *
-     * Possible errors (matches C API):
+     * Possible errors:
      * - ErrorCode::NullPointer
      * - ErrorCode::LicenseFormatInvalid
      * - ErrorCode::LicenseVersionUnsupported
