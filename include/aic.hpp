@@ -90,34 +90,6 @@ enum class VadParameter : int
 };
 
 // ---------------------------
-// Configuration
-// ---------------------------
-
-struct ProcessorConfig
-{
-    uint32_t sample_rate           = 0;
-    uint16_t num_channels          = 1;
-    size_t   num_frames            = 0;
-    bool     allow_variable_frames = false;
-
-    static ProcessorConfig optimal(const class Model& model);
-
-    ProcessorConfig with_num_channels(uint16_t channels) const
-    {
-        ProcessorConfig copy = *this;
-        copy.num_channels    = channels;
-        return copy;
-    }
-
-    ProcessorConfig with_allow_variable_frames(bool allow) const
-    {
-        ProcessorConfig copy       = *this;
-        copy.allow_variable_frames = allow;
-        return copy;
-    }
-};
-
-// ---------------------------
 // Model wrapper
 // ---------------------------
 
@@ -216,7 +188,42 @@ class Model
     Model() : model_(nullptr) {}
     // Wraps an existing SDK model handle; this instance becomes responsible for destroying it.
     explicit Model(::AicModel* model) : model_(model) {}
+};
 
+// ---------------------------
+// Configuration
+// ---------------------------
+
+struct ProcessorConfig
+{
+    uint32_t sample_rate           = 0;
+    uint16_t num_channels          = 1;
+    size_t   num_frames            = 0;
+    bool     allow_variable_frames = false;
+
+    static ProcessorConfig optimal(const Model& model)
+    {
+        ProcessorConfig config;
+        config.sample_rate           = model.get_optimal_sample_rate();
+        config.num_frames            = model.get_optimal_num_frames(config.sample_rate);
+        config.num_channels          = 1;
+        config.allow_variable_frames = false;
+        return config;
+    }
+
+    ProcessorConfig with_num_channels(uint16_t channels) const
+    {
+        ProcessorConfig copy = *this;
+        copy.num_channels    = channels;
+        return copy;
+    }
+
+    ProcessorConfig with_allow_variable_frames(bool allow) const
+    {
+        ProcessorConfig copy       = *this;
+        copy.allow_variable_frames = allow;
+        return copy;
+    }
 };
 
 // ---------------------------
@@ -539,20 +546,6 @@ inline std::string get_sdk_version()
 inline uint32_t get_compatible_model_version()
 {
     return ::aic_get_compatible_model_version();
-}
-
-// ---------------------------
-// ProcessorConfig helpers
-// ---------------------------
-
-inline ProcessorConfig ProcessorConfig::optimal(const Model& model)
-{
-    ProcessorConfig config;
-    config.sample_rate           = model.get_optimal_sample_rate();
-    config.num_frames            = model.get_optimal_num_frames(config.sample_rate);
-    config.num_channels          = 1;
-    config.allow_variable_frames = false;
-    return config;
 }
 
 } // namespace aic
