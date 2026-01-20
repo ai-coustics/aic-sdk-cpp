@@ -137,20 +137,51 @@ class Model
     // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     Model& operator=(const Model&) = delete;
 
-    /**
-     * Creates a new model instance from a file path.
-     */
+/**
+ * Creates a new model instance from a file path.
+ *
+ * The model handle owns the model data and can be shared by multiple processors.
+ *
+ * @param file_path Filesystem path to the model file (null-terminated string).
+ * @return Result containing the Model and an ErrorCode.
+ *
+ * Possible errors (matches C API):
+ * - ErrorCode::NullPointer
+ * - ErrorCode::ModelInvalid
+ * - ErrorCode::ModelVersionUnsupported
+ * - ErrorCode::ModelFilePathInvalid
+ * - ErrorCode::FileSystemError
+ * - ErrorCode::ModelDataUnaligned
+ *
+ * Thread safety: not thread-safe with concurrent model creation or destruction.
+ */
     static Result<Model> create_from_file(const std::string& file_path);
 
     /**
      * Creates a new model instance from a memory buffer.
      *
      * The buffer must remain valid and 64-byte aligned for the lifetime of the model.
+     *
+     * @param buffer Pointer to model bytes (must be 64-byte aligned).
+     * @param buffer_len Size of the model buffer in bytes.
+     * @return Result containing the Model and an ErrorCode.
+     *
+     * Possible errors (matches C API):
+     * - ErrorCode::NullPointer
+     * - ErrorCode::ModelInvalid
+     * - ErrorCode::ModelVersionUnsupported
+     * - ErrorCode::ModelDataUnaligned
+     *
+     * Thread safety: not thread-safe with concurrent model creation or destruction.
      */
     static Result<Model> create_from_buffer(const uint8_t* buffer, size_t buffer_len);
 
     /**
      * Returns the model identifier string.
+     *
+     * The returned string is valid for as long as the Model is alive.
+     *
+     * Thread safety: not safe against concurrent model destruction.
      */
     std::string get_id() const
     {
@@ -160,6 +191,8 @@ class Model
 
     /**
      * Retrieves the native sample rate of the selected model.
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     uint32_t get_optimal_sample_rate() const
     {
@@ -172,6 +205,10 @@ class Model
 
     /**
      * Retrieves the optimal number of frames for the selected model and sample rate.
+     *
+     * Call this before initializing a processor to minimize latency.
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     size_t get_optimal_num_frames(uint32_t sample_rate) const
     {
@@ -203,6 +240,11 @@ struct ProcessorConfig
     size_t   num_frames            = 0;
     bool     allow_variable_frames = false;
 
+    /**
+     * Builds a configuration using the model's optimal sample rate and frame size.
+     *
+     * The returned config uses mono (1 channel) and fixed frames by default.
+     */
     static ProcessorConfig optimal(const Model& model)
     {
         ProcessorConfig config;
@@ -276,6 +318,8 @@ class ProcessorContext
 
     /**
      * Clears all internal state and buffers.
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     ErrorCode reset() const
     {
@@ -285,6 +329,13 @@ class ProcessorContext
 
     /**
      * Modifies a processor parameter.
+     *
+     * Parameter ranges (see C API):
+     * - Bypass: 0.0 or 1.0
+     * - EnhancementLevel: 0.0 to 1.0
+     * - VoiceGain: 0.1 to 4.0
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     ErrorCode set_parameter(ProcessorParameter parameter, float value) const
     {
@@ -295,6 +346,8 @@ class ProcessorContext
 
     /**
      * Retrieves the current value of a parameter.
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     float get_parameter(ProcessorParameter parameter) const
     {
@@ -308,6 +361,11 @@ class ProcessorContext
 
     /**
      * Returns the total output delay in samples for the current audio configuration.
+     *
+     * - Before initialization: returns the base delay at the model's optimal frame size.
+     * - After initialization: returns the delay for the configured sample rate and frames.
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     size_t get_output_delay() const
     {
@@ -378,6 +436,10 @@ class VadContext
 
     /**
      * Returns the VAD's speech detection prediction.
+     *
+     * The prediction latency matches the processor's output latency.
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     bool is_speech_detected() const
     {
@@ -390,6 +452,13 @@ class VadContext
 
     /**
      * Modifies a VAD parameter.
+     *
+     * Parameter ranges (see C API):
+     * - SpeechHoldDuration: 0.0 to 20x model window length (seconds)
+     * - Sensitivity: 1.0 to 15.0
+     * - MinimumSpeechDuration: 0.0 to 1.0 (seconds)
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     ErrorCode set_parameter(VadParameter parameter, float value) const
     {
@@ -400,6 +469,8 @@ class VadContext
 
     /**
      * Retrieves the current value of a VAD parameter.
+     *
+     * Thread safety: thread-safe; real-time safe.
      */
     float get_parameter(VadParameter parameter) const
     {
@@ -470,11 +541,32 @@ class Processor
 
     /**
      * Creates a new audio enhancement processor instance.
+     *
+     * @param model Model handle to process.
+     * @param license_key SDK license key (null-terminated string).
+     * @return Result containing the Processor and an ErrorCode.
+     *
+     * Possible errors (matches C API):
+     * - ErrorCode::NullPointer
+     * - ErrorCode::LicenseFormatInvalid
+     * - ErrorCode::LicenseVersionUnsupported
+     * - ErrorCode::LicenseExpired
+     *
+     * Thread safety: not thread-safe with concurrent processor creation/destruction.
      */
     static Result<Processor> create(const Model& model, const std::string& license_key);
 
     /**
      * Configures the processor for a specific audio format.
+     *
+     * Must be called before processing any audio. For lowest latency, use the model's
+     * optimal sample rate and frame count.
+     *
+     * Notes:
+     * - All channels are mixed to mono for processing.
+     * - Do not call from real-time audio threads (this allocates memory).
+     *
+     * Thread safety: not thread-safe; allocates memory (not real-time safe).
      */
     ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
                          bool allow_variable_frames)
@@ -486,6 +578,14 @@ class Processor
 
     /**
      * Processes audio with separate buffers for each channel (planar layout).
+     *
+     * Memory layout: array of channel pointers, each buffer has num_frames samples.
+     * Maximum supported channels: 16.
+     *
+     * If allow_variable_frames was enabled during initialize, num_frames may be
+     * less than or equal to the initialization value.
+     *
+     * Thread safety: real-time safe; not safe to call from multiple threads.
      */
     ErrorCode process_planar(float* const* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -495,6 +595,13 @@ class Processor
 
     /**
      * Processes audio with interleaved channel data.
+     *
+     * Memory layout: single interleaved buffer of size num_channels * num_frames.
+     *
+     * If allow_variable_frames was enabled during initialize, num_frames may be
+     * less than or equal to the initialization value.
+     *
+     * Thread safety: real-time safe; not safe to call from multiple threads.
      */
     ErrorCode process_interleaved(float* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -504,6 +611,13 @@ class Processor
 
     /**
      * Processes audio with sequential channel data (non-interleaved).
+     *
+     * Memory layout: single buffer with all samples for channel 0, then channel 1, etc.
+     *
+     * If allow_variable_frames was enabled during initialize, num_frames may be
+     * less than or equal to the initialization value.
+     *
+     * Thread safety: real-time safe; not safe to call from multiple threads.
      */
     ErrorCode process_sequential(float* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -513,11 +627,17 @@ class Processor
 
     /**
      * Creates a processor context handle for thread-safe control APIs.
+     *
+     * Thread safety: thread-safe.
      */
     Result<ProcessorContext> create_context() const;
 
     /**
      * Creates a VAD context handle for thread-safe control APIs.
+     *
+     * The VAD uses the enhanced audio output of this processor.
+     *
+     * Thread safety: thread-safe; safe while the processor is in use.
      */
     Result<VadContext> create_vad_context() const;
 
@@ -535,6 +655,8 @@ class Processor
 
 /**
  * Returns the version of the SDK.
+ *
+ * Thread safety: thread-safe; real-time safe.
  */
 inline std::string get_sdk_version()
 {
@@ -544,6 +666,8 @@ inline std::string get_sdk_version()
 
 /**
  * Returns the model version compatible with the SDK.
+ *
+ * Thread safety: thread-safe; real-time safe.
  */
 inline uint32_t get_compatible_model_version()
 {
