@@ -15,7 +15,7 @@ Result<Model> Model::create_from_file(const std::string& file_path)
         return Result<Model>(Model(raw_model), ErrorCode::Success);
     }
 
-    return Result<Model>(Model(), to_cpp(rc));
+    return Result<Model>(Model(), static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
 Result<Model> Model::create_from_buffer(const uint8_t* buffer, size_t buffer_len)
@@ -28,7 +28,7 @@ Result<Model> Model::create_from_buffer(const uint8_t* buffer, size_t buffer_len
         return Result<Model>(Model(raw_model), ErrorCode::Success);
     }
 
-    return Result<Model>(Model(), to_cpp(rc));
+    return Result<Model>(Model(), static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
 Result<Processor> Processor::create(const Model& model, const std::string& license_key)
@@ -48,7 +48,7 @@ Result<Processor> Processor::create(const Model& model, const std::string& licen
         return Result<Processor>(Processor(raw_processor), ErrorCode::Success);
     }
 
-    return Result<Processor>(Processor(), to_cpp(rc));
+    return Result<Processor>(Processor(), static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
 Result<ProcessorContext> Processor::create_context() const
@@ -61,7 +61,8 @@ Result<ProcessorContext> Processor::create_context() const
         return Result<ProcessorContext>(ProcessorContext(raw_context), ErrorCode::Success);
     }
 
-    return Result<ProcessorContext>(ProcessorContext(), to_cpp(rc));
+    return Result<ProcessorContext>(ProcessorContext(),
+                                    static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
 Result<VadContext> Processor::create_vad_context() const
@@ -74,7 +75,7 @@ Result<VadContext> Processor::create_vad_context() const
         return Result<VadContext>(VadContext(raw_context), ErrorCode::Success);
     }
 
-    return Result<VadContext>(VadContext(), to_cpp(rc));
+    return Result<VadContext>(VadContext(), static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
 } // namespace aic

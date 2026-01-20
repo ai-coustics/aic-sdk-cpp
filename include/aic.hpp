@@ -90,30 +90,6 @@ enum class VadParameter : int
 };
 
 // ---------------------------
-// Internal enum conversions
-// ---------------------------
-
-inline constexpr ::AicErrorCode to_c(ErrorCode e)
-{
-    return static_cast<::AicErrorCode>(static_cast<int>(e));
-}
-
-inline constexpr ::AicProcessorParameter to_c(ProcessorParameter p)
-{
-    return static_cast<::AicProcessorParameter>(static_cast<int>(p));
-}
-
-inline constexpr ::AicVadParameter to_c(VadParameter p)
-{
-    return static_cast<::AicVadParameter>(static_cast<int>(p));
-}
-
-inline constexpr ErrorCode to_cpp(::AicErrorCode e)
-{
-    return static_cast<ErrorCode>(static_cast<int>(e));
-}
-
-// ---------------------------
 // Configuration
 // ---------------------------
 
@@ -295,7 +271,7 @@ class ProcessorContext
     ErrorCode reset() const
     {
         ::AicErrorCode rc = aic_processor_context_reset(context_);
-        return to_cpp(rc);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
@@ -303,8 +279,9 @@ class ProcessorContext
      */
     ErrorCode set_parameter(ProcessorParameter parameter, float value) const
     {
-        ::AicErrorCode rc = aic_processor_context_set_parameter(context_, to_c(parameter), value);
-        return to_cpp(rc);
+        ::AicErrorCode rc = aic_processor_context_set_parameter(
+            context_, static_cast<::AicProcessorParameter>(static_cast<int>(parameter)), value);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
@@ -313,7 +290,8 @@ class ProcessorContext
     float get_parameter(ProcessorParameter parameter) const
     {
         float          value = 0.0f;
-        ::AicErrorCode rc = aic_processor_context_get_parameter(context_, to_c(parameter), &value);
+        ::AicErrorCode rc = aic_processor_context_get_parameter(
+            context_, static_cast<::AicProcessorParameter>(static_cast<int>(parameter)), &value);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
         return value;
@@ -406,8 +384,9 @@ class VadContext
      */
     ErrorCode set_parameter(VadParameter parameter, float value) const
     {
-        ::AicErrorCode rc = aic_vad_context_set_parameter(context_, to_c(parameter), value);
-        return to_cpp(rc);
+        ::AicErrorCode rc = aic_vad_context_set_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), value);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
@@ -416,7 +395,8 @@ class VadContext
     float get_parameter(VadParameter parameter) const
     {
         float          value = 0.0f;
-        ::AicErrorCode rc = aic_vad_context_get_parameter(context_, to_c(parameter), &value);
+        ::AicErrorCode rc = aic_vad_context_get_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), &value);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
         return value;
@@ -492,7 +472,7 @@ class Processor
     {
         ::AicErrorCode rc = aic_processor_initialize(processor_, sample_rate, num_channels,
                                                      num_frames, allow_variable_frames);
-        return to_cpp(rc);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
@@ -501,7 +481,7 @@ class Processor
     ErrorCode process_planar(float* const* audio, uint16_t num_channels, size_t num_frames)
     {
         ::AicErrorCode rc = aic_processor_process_planar(processor_, audio, num_channels, num_frames);
-        return to_cpp(rc);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
@@ -510,7 +490,7 @@ class Processor
     ErrorCode process_interleaved(float* audio, uint16_t num_channels, size_t num_frames)
     {
         ::AicErrorCode rc = aic_processor_process_interleaved(processor_, audio, num_channels, num_frames);
-        return to_cpp(rc);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
@@ -519,7 +499,7 @@ class Processor
     ErrorCode process_sequential(float* audio, uint16_t num_channels, size_t num_frames)
     {
         ::AicErrorCode rc = aic_processor_process_sequential(processor_, audio, num_channels, num_frames);
-        return to_cpp(rc);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
