@@ -51,7 +51,7 @@ int main(int argc, char** argv)
     aic::Model model = model_result.take();
     auto config = aic::ProcessorConfig::optimal(model).with_num_channels(1);
 
-    aic::Result<aic::Processor> processor_result = aic::Processor::create(model_ref, license_key);
+    aic::Result<aic::Processor> processor_result = aic::Processor::create(model, license_key);
     err                                          = processor_result.error;
 
     if (!processor_result.ok())
