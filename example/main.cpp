@@ -11,22 +11,22 @@ int main(int argc, char** argv)
     std::cout << "ai-coustics SDK version: " << aic::get_sdk_version() << "\n";
     std::cout << "Compatible model version: " << aic::get_compatible_model_version() << "\n";
 
-    const char* license_env = std::getenv("AIC_SDK_LICENSE");
+    auto license_env = std::getenv("AIC_SDK_LICENSE");
     if (!license_env || std::string(license_env).empty())
     {
         std::cerr << "Error: Environment variable AIC_SDK_LICENSE not set.\n";
         return 1;
     }
-    std::string license_key(license_env);
+    auto license_key = std::string(license_env);
 
-    std::string model_path;
+    auto model_path = std::string();
     if (argc > 1 && argv[1] != nullptr)
     {
         model_path = argv[1];
     }
     else
     {
-        const char* model_env = std::getenv("AIC_SDK_MODEL_PATH");
+        auto model_env = std::getenv("AIC_SDK_MODEL_PATH");
         if (model_env && model_env[0] != '\0')
         {
             model_path = model_env;
@@ -39,8 +39,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::Result<aic::Model> model_result = aic::Model::create_from_file(model_path);
-    aic::ErrorCode          err          = model_result.error;
+    auto model_result = aic::Model::create_from_file(model_path);
+    auto err          = model_result.error;
 
     if (!model_result.ok())
     {
@@ -48,10 +48,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::Model model = model_result.take();
+    auto model = model_result.take();
     auto config = aic::ProcessorConfig::optimal(model).with_num_channels(1);
 
-    aic::Result<aic::Processor> processor_result = aic::Processor::create(model, license_key);
+    auto processor_result = aic::Processor::create(model, license_key);
     err                                          = processor_result.error;
 
     if (!processor_result.ok())
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::Processor processor = processor_result.take();
+    auto processor = processor_result.take();
     err = processor.initialize(config.sample_rate, config.num_channels, config.num_frames,
                                config.allow_variable_frames);
     if (err != aic::ErrorCode::Success)
@@ -69,25 +69,25 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    aic::Result<aic::ProcessorContext> ctx_result = processor.create_context();
+    auto ctx_result = processor.create_context();
     if (!ctx_result.ok())
     {
         std::cerr << "Processor context creation failed\n";
         return 1;
     }
 
-    aic::ProcessorContext ctx = ctx_result.take();
-    size_t output_delay = ctx.get_output_delay();
+    auto ctx = ctx_result.take();
+    auto output_delay = ctx.get_output_delay();
     std::cout << "Output delay: " << output_delay << " samples\n";
 
-    aic::Result<aic::VadContext> vad_result = processor.create_vad_context();
+    auto vad_result = processor.create_vad_context();
     if (!vad_result.ok())
     {
         std::cerr << "VAD context creation failed\n";
         return 1;
     }
 
-    aic::VadContext vad = vad_result.take();
+    auto vad = vad_result.take();
     err = vad.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
     if (err != aic::ErrorCode::Success)
     {
@@ -102,8 +102,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    float speech_hold_duration = vad.get_parameter(aic::VadParameter::SpeechHoldDuration);
-    float sensitivity = vad.get_parameter(aic::VadParameter::Sensitivity);
+    auto speech_hold_duration = vad.get_parameter(aic::VadParameter::SpeechHoldDuration);
+    auto sensitivity = vad.get_parameter(aic::VadParameter::Sensitivity);
     std::cout << "VAD speech hold duration: " << speech_hold_duration << "\n";
     std::cout << "VAD sensitivity: " << sensitivity << "\n";
 
@@ -121,7 +121,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::vector<float> interleaved_buffer(config.num_frames * config.num_channels, 0.1f);
+    auto interleaved_buffer = std::vector<float>(config.num_frames * config.num_channels, 0.1f);
 
     err = processor.process_interleaved(interleaved_buffer.data(), config.num_channels,
                                          config.num_frames);
@@ -131,9 +131,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::vector<std::vector<float> > planar_buffers(config.num_channels,
-                                                     std::vector<float>(config.num_frames, 0.1f));
-    std::vector<float*> channel_ptrs(config.num_channels);
+    auto planar_buffers =
+        std::vector<std::vector<float> >(config.num_channels,
+                                         std::vector<float>(config.num_frames, 0.1f));
+    auto channel_ptrs = std::vector<float*>(config.num_channels);
     for (uint16_t i = 0; i < config.num_channels; ++i)
     {
         channel_ptrs[i] = planar_buffers[i].data();
@@ -146,7 +147,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::vector<float> sequential_buffer(config.num_frames * config.num_channels, 0.1f);
+    auto sequential_buffer = std::vector<float>(config.num_frames * config.num_channels, 0.1f);
     err = processor.process_sequential(sequential_buffer.data(), config.num_channels,
                                         config.num_frames);
     if (err != aic::ErrorCode::Success)
@@ -155,11 +156,11 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    bool speech_detected = vad.is_speech_detected();
+    auto speech_detected = vad.is_speech_detected();
     std::cout << "Speech detected: " << (speech_detected ? "yes" : "no") << "\n";
 
-    float enhancement_level = ctx.get_parameter(aic::ProcessorParameter::EnhancementLevel);
-    float voice_gain        = ctx.get_parameter(aic::ProcessorParameter::VoiceGain);
+    auto enhancement_level = ctx.get_parameter(aic::ProcessorParameter::EnhancementLevel);
+    auto voice_gain        = ctx.get_parameter(aic::ProcessorParameter::VoiceGain);
 
     std::cout << "Enhancement level: " << enhancement_level << "\n";
     std::cout << "Voice gain: " << voice_gain << "\n";
