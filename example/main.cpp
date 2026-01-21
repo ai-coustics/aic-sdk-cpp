@@ -24,18 +24,10 @@ int main(int argc, char** argv)
     {
         model_path = argv[1];
     }
-    else
-    {
-        auto model_env = std::getenv("AIC_SDK_MODEL_PATH");
-        if (model_env && model_env[0] != '\0')
-        {
-            model_path = model_env;
-        }
-    }
 
     if (model_path.empty())
     {
-        std::cerr << "Error: Provide model path as argv[1] or set AIC_SDK_MODEL_PATH.\n";
+        std::cerr << "Error: Provide model path as argv[1]: `./my_app <model_path>`\n";
         return 1;
     }
 
