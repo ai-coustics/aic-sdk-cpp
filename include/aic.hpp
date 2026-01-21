@@ -11,7 +11,9 @@
 namespace aic
 {
 
-/// Error codes returned by SDK functions
+/**
+ * Error codes returned by SDK functions.
+ */
 enum class ErrorCode : int
 {
     /// Operation completed successfully
@@ -51,10 +53,17 @@ enum class ErrorCode : int
     ModelDataUnaligned = AIC_ERROR_CODE_MODEL_DATA_UNALIGNED,
 };
 
+/**
+ * Result wrapper for returning a value and an ErrorCode without exceptions.
+ *
+ * @tparam T Value type stored in the result.
+ */
 template <typename T>
 struct Result
 {
+    /// The returned value (may be default-constructed on failure).
     T         value;
+    /// Error status for the operation.
     ErrorCode error;
 
     // Default constructor: default-constructs the value and sets a non-success error as a safe sentinel
@@ -64,12 +73,15 @@ struct Result
     // Constructor: moves the value and stores the error code
     Result(T&& v, ErrorCode e) : value(std::move(v)), error(e) {}
 
+    /// Returns true when error == ErrorCode::Success.
     bool ok() const { return error == ErrorCode::Success; }
-    // Helper: returns the contained value by move (useful for move-only types).
+    /// Returns the contained value by move (useful for move-only types).
     T take() { return std::move(value); }
 };
 
-/// Configurable parameters for audio enhancement
+/**
+ * Configurable parameters for audio enhancement.
+ */
 enum class ProcessorParameter : int
 {
     /// Bypass keeping processing delay (0.0/1.0): 0.0=disabled, 1.0=enabled
@@ -80,7 +92,9 @@ enum class ProcessorParameter : int
     VoiceGain = AIC_PROCESSOR_PARAMETER_VOICE_GAIN,
 };
 
-/// Configurable parameters for voice activity detection (VAD)
+/**
+ * Configurable parameters for voice activity detection (VAD).
+ */
 enum class VadParameter : int
 {
     /// Controls for how long the VAD continues to detect speech after the audio signal no longer contains speech. (0.0 to 20x model window length in seconds)
