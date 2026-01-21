@@ -1,12 +1,12 @@
 #pragma once
 
+#include "aic.h"
+
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <utility>
-
-#include "aic.h"
 
 namespace aic
 {
@@ -22,7 +22,8 @@ enum class ErrorCode : int
     NullPointer = AIC_ERROR_CODE_NULL_POINTER,
     /// Parameter value is outside the acceptable range. Check documentation for valid values.
     ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
-    /// Processor must be initialized before calling this operation. Call Processor::initialize first.
+    /// Processor must be initialized before calling this operation. Call Processor::initialize
+    /// first.
     ModelNotInitialized = AIC_ERROR_CODE_MODEL_NOT_INITIALIZED,
     /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
     AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
@@ -58,15 +59,15 @@ enum class ErrorCode : int
  *
  * @tparam T Value type stored in the result.
  */
-template <typename T>
-struct Result
+template <typename T> struct Result
 {
     /// The returned value (may be default-constructed on failure).
-    T         value;
+    T value;
     /// Error status for the operation.
     ErrorCode error;
 
-    // Default constructor: default-constructs the value and sets a non-success error as a safe sentinel
+    // Default constructor: default-constructs the value and sets a non-success error as a safe
+    // sentinel
     Result() : value(), error(ErrorCode::InternalError) {}
     // Constructor: copies the value and stores the error code
     Result(const T& v, ErrorCode e) : value(v), error(e) {}
@@ -74,9 +75,15 @@ struct Result
     Result(T&& v, ErrorCode e) : value(std::move(v)), error(e) {}
 
     /// Returns true when error == ErrorCode::Success.
-    bool ok() const { return error == ErrorCode::Success; }
+    bool ok() const
+    {
+        return error == ErrorCode::Success;
+    }
     /// Returns the contained value by move (useful for move-only types).
-    T take() { return std::move(value); }
+    T take()
+    {
+        return std::move(value);
+    }
 };
 
 /**
@@ -97,11 +104,13 @@ enum class ProcessorParameter : int
  */
 enum class VadParameter : int
 {
-    /// Controls for how long the VAD continues to detect speech after the audio signal no longer contains speech. (0.0 to 20x model window length in seconds)
+    /// Controls for how long the VAD continues to detect speech after the audio signal no longer
+    /// contains speech. (0.0 to 20x model window length in seconds)
     SpeechHoldDuration = AIC_VAD_PARAMETER_SPEECH_HOLD_DURATION,
     /// Controls the sensitivity (energy threshold) of the VAD. (1.0-15.0)
     Sensitivity = AIC_VAD_PARAMETER_SENSITIVITY,
-    /// Controls for how long speech needs to be present in the audio signal before the VAD considers it speech (0.0 - 1.0 seconds).
+    /// Controls for how long speech needs to be present in the audio signal before the VAD
+    /// considers it speech (0.0 - 1.0 seconds).
     MinimumSpeechDuration = AIC_VAD_PARAMETER_MINIMUM_SPEECH_DURATION,
 };
 
@@ -130,7 +139,8 @@ class Model
         other.model_ = nullptr;
     }
 
-    // Move assignment: replaces the currently owned handle with the source handle and clears the source
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
     Model& operator=(Model&& other) noexcept
     {
         if (this != &other)
@@ -145,8 +155,9 @@ class Model
         return *this;
     }
 
-    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
-    Model(const Model&)            = delete;
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    Model(const Model&) = delete;
 
     // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     Model& operator=(const Model&) = delete;
@@ -162,7 +173,8 @@ class Model
      * @note Processor instances retain a shared reference to the model data.
      *       It is safe to destroy the Model after creating the desired processors.
      *       The memory used by the model is freed after all processors are destroyed.
-     * @warning Not thread-safe. Ensure no other threads are using the model handle or the same file path.
+     * @warning Not thread-safe. Ensure no other threads are using the model handle or the same file
+     * path.
      */
     static Result<Model> create_from_file(const std::string& file_path);
 
@@ -359,13 +371,15 @@ class ProcessorContext
         }
     }
 
-    // Move constructor: the handle from the source ProcessorContext gets moved into the new ProcessorContext
+    // Move constructor: the handle from the source ProcessorContext gets moved into the new
+    // ProcessorContext
     ProcessorContext(ProcessorContext&& other) noexcept : context_(other.context_)
     {
         other.context_ = nullptr;
     }
 
-    // Move assignment: replaces the currently owned handle with the source handle and clears the source
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
     ProcessorContext& operator=(ProcessorContext&& other) noexcept
     {
         if (this != &other)
@@ -380,8 +394,9 @@ class ProcessorContext
         return *this;
     }
 
-    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
-    ProcessorContext(const ProcessorContext&)            = delete;
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    ProcessorContext(const ProcessorContext&) = delete;
 
     // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     ProcessorContext& operator=(const ProcessorContext&) = delete;
@@ -436,7 +451,7 @@ class ProcessorContext
     float get_parameter(ProcessorParameter parameter) const
     {
         float          value = 0.0f;
-        ::AicErrorCode rc = aic_processor_context_get_parameter(
+        ::AicErrorCode rc    = aic_processor_context_get_parameter(
             context_, static_cast<::AicProcessorParameter>(static_cast<int>(parameter)), &value);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
@@ -476,10 +491,10 @@ class ProcessorContext
 
     // Constructor: creates an empty context wrapper for internal use when creation fails
     ProcessorContext() : context_(nullptr) {}
-    
-    // Constructor: wraps an existing SDK processor context handle; this instance becomes responsible for destroying it
-    explicit ProcessorContext(::AicProcessorContext* context) : context_(context) {}
 
+    // Constructor: wraps an existing SDK processor context handle; this instance becomes
+    // responsible for destroying it
+    explicit ProcessorContext(::AicProcessorContext* context) : context_(context) {}
 };
 
 // ---------------------------
@@ -507,7 +522,8 @@ class VadContext
         other.context_ = nullptr;
     }
 
-    // Move assignment: replaces the currently owned handle with the source handle and clears the source
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
     VadContext& operator=(VadContext&& other) noexcept
     {
         if (this != &other)
@@ -522,8 +538,9 @@ class VadContext
         return *this;
     }
 
-    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
-    VadContext(const VadContext&)            = delete;
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    VadContext(const VadContext&) = delete;
 
     // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     VadContext& operator=(const VadContext&) = delete;
@@ -582,7 +599,7 @@ class VadContext
     float get_parameter(VadParameter parameter) const
     {
         float          value = 0.0f;
-        ::AicErrorCode rc = aic_vad_context_get_parameter(
+        ::AicErrorCode rc    = aic_vad_context_get_parameter(
             context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), &value);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
@@ -595,9 +612,9 @@ class VadContext
 
     // Constructor: creates an empty VAD context wrapper for internal use when creation fails
     VadContext() : context_(nullptr) {}
-    // Constructor: wraps an existing SDK VAD context handle; this instance becomes responsible for destroying it
+    // Constructor: wraps an existing SDK VAD context handle; this instance becomes responsible for
+    // destroying it
     explicit VadContext(::AicVadContext* context) : context_(context) {}
-
 };
 
 // ---------------------------
@@ -625,7 +642,8 @@ class Processor
         other.processor_ = nullptr;
     }
 
-    // Move assignment: replaces the currently owned handle with the source handle and clears the source
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
     Processor& operator=(Processor&& other) noexcept
     {
         if (this != &other)
@@ -640,8 +658,9 @@ class Processor
         return *this;
     }
 
-    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of the handle
-    Processor(const Processor&)            = delete;
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    Processor(const Processor&) = delete;
 
     // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
     Processor& operator=(const Processor&) = delete;
@@ -712,7 +731,8 @@ class Processor
      */
     ErrorCode process_planar(float* const* audio, uint16_t num_channels, size_t num_frames)
     {
-        ::AicErrorCode rc = aic_processor_process_planar(processor_, audio, num_channels, num_frames);
+        ::AicErrorCode rc =
+            aic_processor_process_planar(processor_, audio, num_channels, num_frames);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
@@ -740,7 +760,8 @@ class Processor
      */
     ErrorCode process_interleaved(float* audio, uint16_t num_channels, size_t num_frames)
     {
-        ::AicErrorCode rc = aic_processor_process_interleaved(processor_, audio, num_channels, num_frames);
+        ::AicErrorCode rc =
+            aic_processor_process_interleaved(processor_, audio, num_channels, num_frames);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
@@ -768,7 +789,8 @@ class Processor
      */
     ErrorCode process_sequential(float* audio, uint16_t num_channels, size_t num_frames)
     {
-        ::AicErrorCode rc = aic_processor_process_sequential(processor_, audio, num_channels, num_frames);
+        ::AicErrorCode rc =
+            aic_processor_process_sequential(processor_, audio, num_channels, num_frames);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
@@ -803,9 +825,9 @@ class Processor
   private:
     // Constructor: creates an empty Processor wrapper for internal use when creation fails
     Processor() : processor_(nullptr) {}
-    // Constructor: wraps an existing SDK processor handle; this instance becomes responsible for destroying it
+    // Constructor: wraps an existing SDK processor handle; this instance becomes responsible for
+    // destroying it
     explicit Processor(::AicProcessor* processor) : processor_(processor) {}
-
 };
 
 // ---------------------------

@@ -40,11 +40,11 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    auto model = model_result.take();
+    auto model  = model_result.take();
     auto config = aic::ProcessorConfig::optimal(model).with_num_channels(1);
 
     auto processor_result = aic::Processor::create(model, license_key);
-    err                                          = processor_result.error;
+    err                   = processor_result.error;
 
     if (!processor_result.ok())
     {
@@ -68,7 +68,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    auto ctx = ctx_result.take();
+    auto ctx          = ctx_result.take();
     auto output_delay = ctx.get_output_delay();
     std::cout << "Output delay: " << output_delay << " samples\n";
 
@@ -80,7 +80,7 @@ int main(int argc, char** argv)
     }
 
     auto vad = vad_result.take();
-    err = vad.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
+    err      = vad.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set VAD speech hold duration\n";
@@ -95,7 +95,7 @@ int main(int argc, char** argv)
     }
 
     auto speech_hold_duration = vad.get_parameter(aic::VadParameter::SpeechHoldDuration);
-    auto sensitivity = vad.get_parameter(aic::VadParameter::Sensitivity);
+    auto sensitivity          = vad.get_parameter(aic::VadParameter::Sensitivity);
     std::cout << "VAD speech hold duration: " << speech_hold_duration << "\n";
     std::cout << "VAD sensitivity: " << sensitivity << "\n";
 
@@ -116,16 +116,15 @@ int main(int argc, char** argv)
     auto interleaved_buffer = std::vector<float>(config.num_frames * config.num_channels, 0.1f);
 
     err = processor.process_interleaved(interleaved_buffer.data(), config.num_channels,
-                                         config.num_frames);
+                                        config.num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Interleaved processing failed\n";
         return 1;
     }
 
-    auto planar_buffers =
-        std::vector<std::vector<float> >(config.num_channels,
-                                         std::vector<float>(config.num_frames, 0.1f));
+    auto planar_buffers = std::vector<std::vector<float>>(
+        config.num_channels, std::vector<float>(config.num_frames, 0.1f));
     auto channel_ptrs = std::vector<float*>(config.num_channels);
     for (uint16_t i = 0; i < config.num_channels; ++i)
     {
@@ -141,7 +140,7 @@ int main(int argc, char** argv)
 
     auto sequential_buffer = std::vector<float>(config.num_frames * config.num_channels, 0.1f);
     err = processor.process_sequential(sequential_buffer.data(), config.num_channels,
-                                        config.num_frames);
+                                       config.num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Sequential processing failed\n";

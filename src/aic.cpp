@@ -33,15 +33,15 @@ Result<Model> Model::create_from_buffer(const uint8_t* buffer, size_t buffer_len
 
 Result<Processor> Processor::create(const Model& model, const std::string& license_key)
 {
-    static const bool wrapper_id_set = []() {
+    static const bool wrapper_id_set = []()
+    {
         aic_set_sdk_wrapper_id(1);
         return true;
     }();
     (void) wrapper_id_set;
 
     ::AicProcessor* raw_processor = nullptr;
-    ::AicErrorCode rc =
-        aic_processor_create(&raw_processor, model.model_, license_key.c_str());
+    ::AicErrorCode  rc = aic_processor_create(&raw_processor, model.model_, license_key.c_str());
 
     if (rc == AIC_ERROR_CODE_SUCCESS)
     {
@@ -54,7 +54,7 @@ Result<Processor> Processor::create(const Model& model, const std::string& licen
 Result<ProcessorContext> Processor::create_context() const
 {
     ::AicProcessorContext* raw_context = nullptr;
-    ::AicErrorCode rc = aic_processor_context_create(&raw_context, processor_);
+    ::AicErrorCode         rc          = aic_processor_context_create(&raw_context, processor_);
 
     if (rc == AIC_ERROR_CODE_SUCCESS)
     {
