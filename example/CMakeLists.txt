@@ -40,3 +40,7 @@ target_link_libraries(my_app PRIVATE aic-sdk)
 if(APPLE)
     target_link_libraries(my_app PRIVATE "-framework Security" "-framework CoreFoundation")
 endif()
+
+if(WIN32)
+    target_link_libraries(my_app PRIVATE crypt32)
+endif()
