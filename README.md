@@ -16,7 +16,7 @@ To use this SDK, you'll need to generate an **SDK license key** from our [Develo
 
 ### CMake Integration
 
-Whith this CMake example you can add the SDK to your application and let CMake download all necessary files automatically:
+With this CMake example you can add the SDK to your application and let CMake download all necessary files automatically:
 
 ```cmake
 include(FetchContent)
@@ -24,11 +24,11 @@ include(FetchContent)
 set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time")
 
 FetchContent_Declare(
-        aic_sdk
-        GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.13.0
-        GIT_SHALLOW    TRUE
-    )
+    aic_sdk
+    GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
+    GIT_TAG        0.13.0
+    GIT_SHALLOW    TRUE
+)
 FetchContent_MakeAvailable(aic_sdk)
 
 target_link_libraries(my_app PRIVATE aic-sdk)
@@ -48,21 +48,35 @@ Here's a simple example showing the core SDK workflow. Error handling is omitted
 int main() {
     // Load your license key
     const char* license = std::getenv("AIC_SDK_LICENSE");
+    if (!license || *license == '\0') {
+        return 1;
+    }
 
     // Create a new model from a file path
-    aic::Result<aic::Model> model_result = aic::Model::create_from_file("/path/to/model.aicmodel");
-    aic::Model model = model_result.take();
+    auto model_result = aic::Model::create_from_file("/path/to/model.aicmodel");
+    if (!model_result.ok()) {
+        return 1;
+    }
+    auto model = model_result.take();
 
     // Create a processor and initialize with your audio settings
     auto processor_result = aic::Processor::create(model, license);
-    aic::Processor processor = processor_result.take();
-    aic::ProcessorConfig config = aic::ProcessorConfig::optimal(model).with_num_channels(2);
-    processor->initialize(config.sample_rate, config.num_channels, config.num_frames,
-                          config.allow_variable_frames);
+    if (!processor_result.ok()) {
+        return 1;
+    }
+
+    auto processor = processor_result.take();
+    auto config = aic::ProcessorConfig::optimal(model).with_num_channels(2);
+    processor.initialize(config.sample_rate, config.num_channels, config.num_frames,
+                         config.allow_variable_frames);
 
     // Configure enhancement parameters via a processor context
     auto ctx_result = processor.create_context();
-    aic::ProcessorContext ctx = ctx_result.take();
+    if (!ctx_result.ok()) {
+        return 1;
+    }
+
+    auto ctx = ctx_result.take();
     ctx.set_parameter(aic::ProcessorParameter::EnhancementLevel, 0.7f);
 
     // Process audio (interleaved version available as well)
