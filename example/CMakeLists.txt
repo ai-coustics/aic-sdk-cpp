@@ -36,3 +36,7 @@ add_executable(my_app main.cpp)
 
 # Link against the SDK
 target_link_libraries(my_app PRIVATE aic-sdk)
+
+if(APPLE)
+    target_link_libraries(my_app PRIVATE "-framework Security" "-framework CoreFoundation")
+endif()
