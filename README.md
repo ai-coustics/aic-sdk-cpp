@@ -96,11 +96,10 @@ The wrapper is fully C++11 compatible and on Linux you will need at least GLIBC 
 
 ## Running the Example
 
-To run the example, make sure you have set your license key and model path as environment variables:
+To run the example, make sure you have set your license key in an environment variable:
 
 ```bash
 export AIC_SDK_LICENSE="your_license_key_here"
-export AIC_SDK_MODEL_PATH="/path/to/model.aicmodel"
 ```
 
 Then use the following commands to configure, build and run the example (you can also pass the model path as the first argument):
@@ -108,7 +107,7 @@ Then use the following commands to configure, build and run the example (you can
 ```sh
 cmake -B build ./example
 cmake --build build -j
-./build/my_app
+./build/my_app /path/to/model.aicmodel
 ```
 
 ## Support & Resources
