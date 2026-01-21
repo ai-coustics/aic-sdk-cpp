@@ -22,7 +22,7 @@ enum class ErrorCode : int
     NullPointer = AIC_ERROR_CODE_NULL_POINTER,
     /// Parameter value is outside the acceptable range. Check documentation for valid values.
     ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
-    /// Processor must be initialized before calling this operation. Call `aic_processor_initialize` first.
+    /// Processor must be initialized before calling this operation. Call Processor::initialize first.
     ModelNotInitialized = AIC_ERROR_CODE_MODEL_NOT_INITIALIZED,
     /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
     AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
@@ -156,17 +156,13 @@ class Model
      *
      * A single model instance can be used to create multiple processors.
      *
-     * # Note
-     * Processor instances retain a shared reference to the model data.
-     * It is safe to destroy the model handle after creating the desired processors.
-     * The memory used by the model will be automatically freed after all processors
-     * using that model have been destroyed.
+     * @param file_path Path to the model file.
+     * @return Result containing the Model and an ErrorCode.
      *
-     * # Safety
-     * - This function is not thread-safe. Ensure no other threads are using the model handle or the same file path.
-     *
-     * @param file_path NULL-terminated string containing the path to the model file. Must not be NULL.
-     * @return `Result` containing the `Model` and an `ErrorCode`.
+     * @note Processor instances retain a shared reference to the model data.
+     *       It is safe to destroy the Model after creating the desired processors.
+     *       The memory used by the model is freed after all processors are destroyed.
+     * @warning Not thread-safe. Ensure no other threads are using the model handle or the same file path.
      */
     static Result<Model> create_from_file(const std::string& file_path);
 
@@ -175,27 +171,24 @@ class Model
      *
      * The buffer must remain valid and unchanged for the lifetime of the model.
      *
-     * # Note
-     * Processor instances retain a shared reference to the model data.
-     * It is safe to destroy the model handle after creating the desired processors.
-     * The memory used by the model will be automatically freed after all processors
-     * using that model have been destroyed.
-     * 
-     * # Safety
-     * - This function is not thread-safe. Ensure no other threads are using the model handle.
-     *
      * @param buffer Pointer to model bytes (must be 64-byte aligned).
      * @param buffer_len Size of the model buffer in bytes.
-     * @return `Result` containing the `Model` and an `ErrorCode`.
+     * @return Result containing the Model and an ErrorCode.
+     *
+     * @note Processor instances retain a shared reference to the model data.
+     *       It is safe to destroy the Model after creating the desired processors.
+     *       The memory used by the model is freed after all processors are destroyed.
+     * @warning Not thread-safe. Ensure no other threads are using the model handle.
      */
     static Result<Model> create_from_buffer(const uint8_t* buffer, size_t buffer_len);
 
     /**
      * Returns the model identifier string.
      *
-     * The returned string is valid for as long as the Model is alive.
+     * @return Model identifier string (UTF-8).
      *
-     * Thread safety: not safe against concurrent model destruction.
+     * @note The returned string is valid for as long as the Model is alive.
+     * @warning Not safe against concurrent model destruction.
      */
     std::string get_id() const
     {
@@ -226,7 +219,7 @@ class Model
      * **Sample rate and optimal frames relationship:**
      *
      * When using different sample rates than the model's native rate, the optimal number
-     * of frames (returned by `aic_model_get_optimal_num_frames`) will change. The processor's output
+     * of frames (returned by Model::get_optimal_num_frames) will change. The processor's output
      * delay remains constant regardless of sample rate as long as you use the optimal frame
      * count for that rate.
      *
@@ -235,17 +228,9 @@ class Model
      * For maximum enhancement quality across the full frequency spectrum, match your
      * input sample rate to the model's native rate when possible.
      *
-     * # Parameters
-     * - `model`: Model instance. Must not be NULL.
-     * - `sample_rate`: Receives the optimal sample rate in Hz. Must not be NULL.
+     * @return Optimal sample rate in Hz.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Sample rate retrieved successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `model` or `sample_rate` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     uint32_t get_optimal_sample_rate() const
     {
@@ -269,21 +254,13 @@ class Model
      * For example, a model designed for 10 ms processing windows requires 480 frames at
      * 48 kHz, but only 160 frames at 16 kHz to capture the same duration of audio.
      *
-     * Call this function with your intended sample rate before calling `aic_processor_initialize`
+     * Call this function with your intended sample rate before calling Processor::initialize
      * to determine the best frame count for minimal latency.
      *
-     * # Parameters
-     * - `model`: Model instance. Must not be NULL.
-     * - `sample_rate`: The sample rate in Hz for which to calculate the optimal frame count.
-     * - `num_frames`: Receives the optimal frame count. Must not be NULL.
+     * @param sample_rate Sample rate in Hz for which to calculate the optimal frame count.
+     * @return Optimal frame count.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Frame count retrieved successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `model` or `num_frames` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     size_t get_optimal_num_frames(uint32_t sample_rate) const
     {
@@ -315,13 +292,14 @@ struct ProcessorConfig
     size_t   num_frames            = 0;
     bool     allow_variable_frames = false;
 
-    /** Returns a [`ProcessorConfig`] pre-filled with the model's optimal sample rate and frame size.
+    /**
+     * Returns a ProcessorConfig pre-filled with the model's optimal sample rate and frame size.
      *
-     * `num_channels` will be set to `1` and `allow_variable_frames` to `false`.
-     * Adjust the number of channels and enable variable frames by using the builder pattern.
+     * @param model Model instance used to query optimal settings.
+     * @return ProcessorConfig with the optimal sample rate and frame size.
      *
-     * If you need to configure a non-optimal sample rate or number of frames,
-     * construct the [`ProcessorConfig`] struct directly.
+     * @note `num_channels` will be set to 1 and `allow_variable_frames` to false.
+     *       Adjust the number of channels and enable variable frames as needed.
      */
     static ProcessorConfig optimal(const Model& model)
     {
@@ -333,11 +311,11 @@ struct ProcessorConfig
         return config;
     }
 
-    /** Sets the number of audio channels for processing.
+    /**
+     * Sets the number of audio channels for processing.
      *
-     * # Arguments
-     *
-     * - `num_channels` - Number of audio channels (1 for mono, 2 for stereo, etc.)
+     * @param channels Number of audio channels (1 for mono, 2 for stereo, etc.).
+     * @return Updated ProcessorConfig.
      */
     ProcessorConfig with_num_channels(uint16_t channels) const
     {
@@ -346,13 +324,13 @@ struct ProcessorConfig
         return copy;
     }
 
-    /** Enables or disables variable frame size support.
+    /**
+     * Enables or disables variable frame size support.
      *
-     * When enabled, allows processing frame counts below `num_frames` at the cost of added latency.
+     * When enabled, allows processing frame counts below num_frames at the cost of added latency.
      *
-     * # Arguments
-     *
-     * - `allow_variable_frames` - `true` to enable variable frame sizes, `false` for fixed size
+     * @param allow True to enable variable frame sizes, false for fixed size.
+     * @return Updated ProcessorConfig.
      */
     ProcessorConfig with_allow_variable_frames(bool allow) const
     {
@@ -414,20 +392,11 @@ class ProcessorContext
      * Call this when the audio stream is interrupted or when seeking
      * to prevent artifacts from previous audio content.
      *
-     * This operates on the processor associated with the provided context handle.
-     *
      * The processor stays initialized to the configured settings.
      *
-     * # Parameters
-     * - `context`: Processor context instance to reset. Must not be NULL.
+     * @return ErrorCode::Success on success, or an error code on failure.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: State cleared successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     ErrorCode reset() const
     {
@@ -441,21 +410,11 @@ class ProcessorContext
      * All parameters can be changed during audio processing.
      * This function can be called from any thread.
      *
-     * This operates on the processor associated with the provided context handle.
+     * @param parameter Parameter to modify.
+     * @param value New parameter value.
+     * @return ErrorCode::Success on success, or an error code on failure.
      *
-     * # Parameters
-     * - `context`: Processor context instance. Must not be NULL.
-     * - `parameter`: Parameter to modify.
-     * - `value`: New parameter value. See parameter documentation for ranges.
-     *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Parameter updated successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` is NULL
-     * - `AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE`: Value outside valid range
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     ErrorCode set_parameter(ProcessorParameter parameter, float value) const
     {
@@ -469,20 +428,10 @@ class ProcessorContext
      *
      * This function can be called from any thread.
      *
-     * This queries the processor associated with the provided context handle.
+     * @param parameter Parameter to query.
+     * @return Current parameter value.
      *
-     * # Parameters
-     * - `context`: Processor context instance. Must not be NULL.
-     * - `parameter`: Parameter to query.
-     * - `value`: Receives the current parameter value. Must not be NULL.
-     *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Parameter retrieved successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` or `value` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     float get_parameter(ProcessorParameter parameter) const
     {
@@ -502,32 +451,15 @@ class ProcessorContext
      * Use this value to synchronize enhanced audio with other streams or to implement
      * delay compensation in your application.
      *
-     * This queries the processor associated with the provided context handle.
+     * @return Output delay in samples.
      *
-     * **Delay behavior:**
-     * - **Before initialization:** Returns the base processing delay using the processor's
-     *   optimal frame size at its native sample rate
-     * - **After initialization:** Returns the actual delay for your specific configuration,
-     *   including any additional buffering introduced by non-optimal frame sizes
-     *
-     * **Important:** The delay value is always expressed in samples at the sample rate
-     * you configured during `aic_processor_initialize`. To convert to time units:
-     * `delay_ms = (delay_samples * 1000) / sample_rate`
-     *
-     * **Note:** Using frame sizes different from the optimal value returned by
-     * `aic_processor_get_optimal_num_frames` will increase the delay beyond the processor's base latency.
-     *
-     * # Parameters
-     * - `context`: Processor context instance. Must not be NULL.
-     * - `delay`: Receives the delay in samples. Must not be NULL.
-     *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Delay retrieved successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` or `delay` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Before initialization, returns the base processing delay using the
+     *       processor's optimal frame size at its native sample rate. After initialization,
+     *       returns the delay for the configured sample rate and frame count.
+     * @note The delay value is expressed in samples at the configured sample rate.
+     *       To convert to milliseconds: delay_ms = (delay_samples * 1000) / sample_rate.
+     * @note Using frame sizes different from the model's optimal value increases delay.
+     * @note Thread-safe and real-time safe.
      */
     size_t get_output_delay() const
     {
@@ -605,17 +537,9 @@ class VadContext
      * - If the backing processor stops being processed,
      *   the VAD will not update its speech detection prediction.
      *
-     * # Parameters
-     * - `context`: VAD context instance. Must not be NULL.
-     * - `value`: Receives the VAD prediction. Must not be NULL.
+     * @return True if speech is detected, false otherwise.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Prediction retrieved successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` or `value` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     bool is_speech_detected() const
     {
@@ -632,19 +556,11 @@ class VadContext
      * All parameters can be changed during audio processing.
      * This function can be called from any thread.
      *
-     * # Parameters
-     * - `context`: VAD context instance. Must not be NULL.
-     * - `parameter`: Parameter to modify.
-     * - `value`: New parameter value. See parameter documentation for ranges.
+     * @param parameter Parameter to modify.
+     * @param value New parameter value.
+     * @return ErrorCode::Success on success, or an error code on failure.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Parameter updated successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` is NULL
-     * - `AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE`: Value outside valid range
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     ErrorCode set_parameter(VadParameter parameter, float value) const
     {
@@ -658,18 +574,10 @@ class VadContext
      *
      * This function can be called from any thread.
      *
-     * # Parameters
-     * - `context`: VAD context instance. Must not be NULL.
-     * - `parameter`: Parameter to query.
-     * - `value`: Receives the current parameter value. Must not be NULL.
+     * @param parameter Parameter to query.
+     * @return Current parameter value.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Parameter retrieved successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` or `value` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe and real-time safe.
      */
     float get_parameter(VadParameter parameter) const
     {
@@ -744,20 +652,11 @@ class Processor
      * Multiple processors can be created to process different audio streams simultaneously
      * or to switch between different enhancement algorithms during runtime.
      *
-     * # Parameters
-     * - `processor`: Receives the handle to the newly created processor. Must not be NULL.
-     * - `model`: Handle to the model instance to process. Must not be NULL.
-     * - `license_key`: NULL-terminated string containing your license key. Must not be NULL.
+     * @param model Model instance to process.
+     * @param license_key SDK license key.
+     * @return Result containing the Processor and an ErrorCode.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Processor created successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `processor` or `model` or `license_key` is NULL
-     * - `AIC_ERROR_CODE_LICENSE_INVALID`: License key format is incorrect
-     * - `AIC_ERROR_CODE_LICENSE_VERSION_UNSUPPORTED`: License version is not compatible with the SDK version
-     * - `AIC_ERROR_CODE_LICENSE_EXPIRED`: License key has expired
-     *
-     * # Safety
-     * - This function is not thread-safe. Ensure no other threads are using the processor handle.
+     * @warning Not thread-safe. Ensure no other threads are using the processor handle.
      */
     static Result<Processor> create(const Model& model, const std::string& license_key);
 
@@ -766,27 +665,17 @@ class Processor
      *
      * This function must be called before processing any audio.
      * For the lowest delay use the sample rate and frame size returned by
-     * `aic_processor_get_optimal_sample_rate` and `aic_processor_get_optimal_num_frames`.
+     * Model::get_optimal_sample_rate and Model::get_optimal_num_frames.
      *
-     * # Parameters
-     * - `processor`: Processor instance to configure. Must not be NULL.
-     * - `sample_rate`: Audio sample rate in Hz (8000 - 192000).
-     * - `num_channels`: Number of audio channels (1 for mono, 2 for stereo, etc.).
-     * - `num_frames`: Number of samples per channel in each process call.
-     * - `allow_variable_frames`: Allows varying frame counts per process call (up to `num_frames`), but increases delay.
+     * @param sample_rate Audio sample rate in Hz (8000 - 192000).
+     * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.).
+     * @param num_frames Number of samples per channel in each process call.
+     * @param allow_variable_frames Allows varying frame counts per process call (up to num_frames).
+     * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Configuration accepted
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `processor` is NULL
-     * - `AIC_ERROR_CODE_UNSUPPORTED_AUDIO_CONFIG`: Configuration is not supported
-     *
-     * # Note
-     * All channels are mixed to mono for processing. To process channels
-     * independently, create separate processor instances.
-     *
-     * # Safety
-     * - This function allocates memory. Avoid calling it from real-time audio threads.
-     * - This function is not thread-safe. Ensure no other threads are using the processor during initialization.
+     * @note All channels are mixed to mono for processing. To process channels
+     *       independently, create separate processor instances.
+     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
      */
     ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
                          bool allow_variable_frames)
@@ -812,22 +701,14 @@ class Processor
      *
      * The planar function allows a maximum of 16 channels.
      *
-     * # Parameters
-     * - `processor`: Initialized processor instance. Must not be NULL.
-     * - `audio`: Array of `num_channels` pointers, each pointing to a buffer of `num_frames` floats. Must not be NULL.
-     * - `num_channels`: Number of channels (must match initialization).
-     * - `num_frames`: Number of samples per channel (must match initialization value, or if `allow_variable_frames` was enabled, must be ≤ initialization value).
+     * @param audio Array of channel buffer pointers, one per channel.
+     * @param num_channels Number of channels (must match initialization).
+     * @param num_frames Number of samples per channel.
+     * @return ErrorCode::Success on success, or an error code on failure.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Audio processed successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `processor` or `audio` is NULL
-     * - `AIC_ERROR_CODE_NOT_INITIALIZED`: Processor has not been initialized
-     * - `AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH`: Channel or frame count mismatch
-     * - `AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED`: SDK key was not authorized or process failed to report usage. Check if you have internet connection.
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - This function is not thread-safe. Do not call this function from multiple threads.
+     * @note If allow_variable_frames is enabled, num_frames may be less than or equal
+     *       to the initialization value.
+     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
      */
     ErrorCode process_planar(float* const* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -848,22 +729,14 @@ class Processor
      *   audio -> [ch0_f0, ch1_f0, ch0_f1, ch1_f1, ch0_f2, ch1_f2, ch0_f3, ch1_f3]
      *   ```
      *
-     * # Parameters
-     * - `processor`: Initialized processor instance. Must not be NULL.
-     * - `audio`: Single buffer containing interleaved audio data of size `num_channels` * `num_frames`. Must not be NULL.
-     * - `num_channels`: Number of channels (must match initialization).
-     * - `num_frames`: Number of samples per channel (must match initialization value, or if `allow_variable_frames` was enabled, must be ≤ initialization value).
+     * @param audio Interleaved audio buffer of size num_channels * num_frames.
+     * @param num_channels Number of channels (must match initialization).
+     * @param num_frames Number of samples per channel.
+     * @return ErrorCode::Success on success, or an error code on failure.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Audio processed successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `processor` or `audio` is NULL
-     * - `AIC_ERROR_CODE_NOT_INITIALIZED`: Processor has not been initialized
-     * - `AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH`: Channel or frame count mismatch
-     * - `AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED`: SDK key was not authorized or process failed to report usage. Check if you have internet connection.
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - This function is not thread-safe. Do not call this function from multiple threads.
+     * @note If allow_variable_frames is enabled, num_frames may be less than or equal
+     *       to the initialization value.
+     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
      */
     ErrorCode process_interleaved(float* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -884,22 +757,14 @@ class Processor
      *   audio -> [ch0_f0, ch0_f1, ch0_f2, ch0_f3, ch1_f0, ch1_f1, ch1_f2, ch1_f3]
      *   ```
      *
-     * # Parameters
-     * - `processor`: Initialized processor instance. Must not be NULL.
-     * - `audio`: Single buffer containing sequential audio data of size `num_channels` * `num_frames`. Must not be NULL.
-     * - `num_channels`: Number of channels (must match initialization).
-     * - `num_frames`: Number of samples per channel (must match initialization value, or if `allow_variable_frames` was enabled, must be ≤ initialization value).
+     * @param audio Sequential audio buffer of size num_channels * num_frames.
+     * @param num_channels Number of channels (must match initialization).
+     * @param num_frames Number of samples per channel.
+     * @return ErrorCode::Success on success, or an error code on failure.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Audio processed successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `processor` or `audio` is NULL
-     * - `AIC_ERROR_CODE_NOT_INITIALIZED`: Processor has not been initialized
-     * - `AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH`: Channel or frame count mismatch
-     * - `AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED`: SDK key was not authorized or process failed to report usage. Check if you have internet connection.
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - This function is not thread-safe. Do not call this function from multiple threads.
+     * @note If allow_variable_frames is enabled, num_frames may be less than or equal
+     *       to the initialization value.
+     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
      */
     ErrorCode process_sequential(float* audio, uint16_t num_channels, size_t num_frames)
     {
@@ -910,19 +775,12 @@ class Processor
     /**
      * Creates a processor context handle for thread-safe control APIs.
      *
-     * Use the returned handle to reset the processor, parameter APIs,
-     * and other thread-safe functions that operate on `AicProcessorContext`.
+     * The returned context can be used to reset the processor, adjust parameters,
+     * and query output delay from any thread.
      *
-     * # Parameters
-     * - `context`: Receives the handle to the processor context. Must not be NULL.
-     * - `processor`: Processor instance. Must not be NULL.
+     * @return Result containing the ProcessorContext and an ErrorCode.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: Context handle created successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `processor` or `context` is NULL
-     *
-     * # Safety
-     * - Thread-safe: Can be called from any thread.
+     * @note Thread-safe.
      */
     Result<ProcessorContext> create_context() const;
 
@@ -932,23 +790,13 @@ class Processor
      * The voice activity detection works automatically using the enhanced audio output
      * of a given processor.
      *
-     * This uses the processor associated with the provided processor handle.
-     *
      * **Important:** If the backing processor is destroyed, the VAD instance will stop
      * producing new data. It is safe to destroy the processor without destroying the VAD.
      *
-     * # Parameters
-     * - `context`: VAD context instance. Must not be NULL.
-     * - `processor`: Processor instance to use as data source for the VAD.
+     * @return Result containing the VadContext and an ErrorCode.
      *
-     * # Returns
-     * - `AIC_ERROR_CODE_SUCCESS`: VAD created successfully
-     * - `AIC_ERROR_CODE_NULL_POINTER`: `context` or `processor` is NULL
-     *
-     * # Safety
-     * - Real-time safe: Can be called from audio processing threads.
-     * - Thread-safe: Can be called from any thread.
-     * - It is safe for the processor handle to be currently in use by other threads.
+     * @note Thread-safe and real-time safe.
+     * @note It is safe for the processor to be in use by other threads.
      */
     Result<VadContext> create_vad_context() const;
 
@@ -967,14 +815,9 @@ class Processor
 /**
  * Returns the version of the SDK.
  *
- * # Returns
- * A null-terminated C string containing the version (e.g., "1.2.3")
+ * @return SDK version string (e.g., "1.2.3").
  *
- * # Safety
- * - The returned pointer points to a static string and remains valid
- *   for the lifetime of the program. The caller should NOT free this pointer.
- * - Real-time safe: Can be called from audio processing threads.
- * - Thread-safe: Can be called from any thread.
+ * @note Thread-safe and real-time safe.
  */
 inline std::string get_sdk_version()
 {
@@ -985,12 +828,9 @@ inline std::string get_sdk_version()
 /**
  * Returns the model version compatible with the SDK.
  *
- * # Returns
- * Model version compatible with this version of the SDK.
+ * @return Model version compatible with this SDK build.
  *
- * # Safety
- * - Real-time safe: Can be called from audio processing threads.
- * - Thread-safe: Can be called from any thread.
+ * @note Thread-safe and real-time safe.
  */
 inline uint32_t get_compatible_model_version()
 {
