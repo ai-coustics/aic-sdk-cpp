@@ -14,7 +14,7 @@ This release comes with a number of new features and several breaking changes. M
 **C++ wrapper alignment**: The C++ API mirrors these changes:
 - `aic::Model` holds model data; `aic::Processor` performs processing using a model
 - `aic::ProcessorContext` and `aic::VadContext` are created from a processor for thread-safe control APIs
-- `aic::ProcessorConfig` is a simple struct for processor configuration parameters
+- `aic::ProcessorConfig` struct holds audio configuration (sample rate, channels, frames, variable frame support)
 
 ## New features
 
