@@ -41,7 +41,13 @@ int main(int argc, char** argv)
     }
 
     auto model  = model_result.take();
-    auto config = aic::ProcessorConfig::optimal(model).with_num_channels(1);
+
+    // Query optimal settings from the model
+    auto sample_rate = model.get_optimal_sample_rate();
+    auto num_frames = model.get_optimal_num_frames(sample_rate);
+
+    // Create configuration with optimal settings
+    aic::ProcessorConfig config(sample_rate, num_frames);  // mono, fixed frames
 
     auto processor_result = aic::Processor::create(model, license_key);
     err                   = processor_result.error;
