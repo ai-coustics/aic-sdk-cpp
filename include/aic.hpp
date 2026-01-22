@@ -299,57 +299,28 @@ class Model
 
 struct ProcessorConfig
 {
-    uint32_t sample_rate           = 0;
-    uint16_t num_channels          = 1;
-    size_t   num_frames            = 0;
-    bool     allow_variable_frames = false;
+    uint32_t sample_rate;
+    uint16_t num_channels;
+    size_t   num_frames;
+    bool     allow_variable_frames;
 
     /**
-     * Returns a ProcessorConfig pre-filled with the model's optimal sample rate and frame size.
+     * Constructs a ProcessorConfig with the specified parameters.
      *
-     * @param model Model instance used to query optimal settings.
-     * @return ProcessorConfig with the optimal sample rate and frame size.
-     *
-     * @note `num_channels` will be set to 1 and `allow_variable_frames` to false.
-     *       Adjust the number of channels and enable variable frames as needed.
+     * @param sample_rate Audio sample rate in Hz.
+     * @param num_frames Number of frames per processing block.
+     * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.).
+     * @param allow_variable_frames True to enable variable frame sizes, false for fixed size.
      */
-    static ProcessorConfig optimal(const Model& model)
-    {
-        ProcessorConfig config;
-        config.sample_rate           = model.get_optimal_sample_rate();
-        config.num_frames            = model.get_optimal_num_frames(config.sample_rate);
-        config.num_channels          = 1;
-        config.allow_variable_frames = false;
-        return config;
-    }
-
-    /**
-     * Sets the number of audio channels for processing.
-     *
-     * @param channels Number of audio channels (1 for mono, 2 for stereo, etc.).
-     * @return Updated ProcessorConfig.
-     */
-    ProcessorConfig with_num_channels(uint16_t channels) const
-    {
-        ProcessorConfig copy = *this;
-        copy.num_channels    = channels;
-        return copy;
-    }
-
-    /**
-     * Enables or disables variable frame size support.
-     *
-     * When enabled, allows processing frame counts below num_frames at the cost of added latency.
-     *
-     * @param allow True to enable variable frame sizes, false for fixed size.
-     * @return Updated ProcessorConfig.
-     */
-    ProcessorConfig with_allow_variable_frames(bool allow) const
-    {
-        ProcessorConfig copy       = *this;
-        copy.allow_variable_frames = allow;
-        return copy;
-    }
+    ProcessorConfig(uint32_t sample_rate,
+                    size_t   num_frames,
+                    uint16_t num_channels          = 1,
+                    bool     allow_variable_frames = false)
+        : sample_rate(sample_rate)
+        , num_channels(num_channels)
+        , num_frames(num_frames)
+        , allow_variable_frames(allow_variable_frames)
+    {}
 };
 
 // ---------------------------
