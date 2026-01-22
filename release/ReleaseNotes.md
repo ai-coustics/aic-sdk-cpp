@@ -45,7 +45,7 @@ This release comes with a number of new features and several breaking changes. M
 
 ## Breaking changes
 
-- License keys previously generated in the [development portal](developers.ai-coustics.io) will no longer work. New license keys have to be generated.
+- License keys previously generated in the [developer portal](developers.ai-coustics.io) will no longer work. New license keys have to be generated.
 - Existing model-processing combined API has been split into `aic::Model` and `aic::Processor`.
 - Removed `aic::ModelType` enum; callers must supply a model file or aligned buffer instead of selecting a built-in model.
 - License keys are now provided to `aic::Processor::create` rather than model creation.
