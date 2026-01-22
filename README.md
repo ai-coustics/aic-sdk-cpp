@@ -42,8 +42,10 @@ int main() {
     // Load a model from file (download models at https://artifacts.ai-coustics.io/)
     auto model = aic::Model::create_from_file("./models/model.aicmodel").take();
 
-    // Get optimal configuration
-    auto config = aic::ProcessorConfig::optimal(model).with_num_channels(2);
+    // Create configuration with model's optimal settings
+    auto sample_rate = model.get_optimal_sample_rate();
+    auto num_frames = model.get_optimal_num_frames(sample_rate);
+    aic::ProcessorConfig config(sample_rate, num_frames, 2);  // 2 channels (stereo)
 
     // Create and initialize processor
     auto processor = aic::Processor::create(model, license_key).take();
@@ -111,22 +113,17 @@ size_t optimal_frames = model.get_optimal_num_frames(48000);
 ### Configuring the Processor
 
 ```cpp
-// Get optimal configuration for the model
-auto config = aic::ProcessorConfig::optimal(model);
-// config.sample_rate = 48000, config.num_channels = 1,
-// config.num_frames = 480, config.allow_variable_frames = false
+// Query optimal settings from the model
+auto sample_rate = model.get_optimal_sample_rate();
+auto num_frames = model.get_optimal_num_frames(sample_rate);
 
-// Customize configuration using builder pattern
-config = aic::ProcessorConfig::optimal(model)
-    .with_num_channels(2)
-    .with_allow_variable_frames(true);
+// Create configuration with optimal settings
+aic::ProcessorConfig config(sample_rate, num_frames);  // mono, fixed frames
+// Or customize: stereo with variable frames
+aic::ProcessorConfig config(sample_rate, num_frames, 2, true);
 
-// Or create from scratch
-aic::ProcessorConfig config;
-config.sample_rate = 48000;
-config.num_channels = 2;
-config.num_frames = 480;
-config.allow_variable_frames = false;
+// Or use custom values entirely
+aic::ProcessorConfig config(48000, 480, 2, false);
 
 // Create processor with license key
 auto processor = aic::Processor::create(model, license_key).take();
