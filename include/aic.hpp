@@ -40,7 +40,7 @@ enum class ErrorCode : int
     LicenseFormatInvalid = AIC_ERROR_CODE_LICENSE_FORMAT_INVALID,
     /// License version is not compatible with the SDK version. Update SDK or contact support.
     LicenseVersionUnsupported = AIC_ERROR_CODE_LICENSE_VERSION_UNSUPPORTED,
-    /// License key has expired
+    /// License key has expired. Renew your license to continue.
     LicenseExpired = AIC_ERROR_CODE_LICENSE_EXPIRED,
     /// The model file is invalid or corrupted. Verify the file is correct.
     ModelInvalid = AIC_ERROR_CODE_MODEL_INVALID,
@@ -48,9 +48,9 @@ enum class ErrorCode : int
     ModelVersionUnsupported = AIC_ERROR_CODE_MODEL_VERSION_UNSUPPORTED,
     /// The path to the model file is invalid.
     ModelFilePathInvalid = AIC_ERROR_CODE_MODEL_FILE_PATH_INVALID,
-    /// File system error when accessing the model file.
+    /// The model file cannot be opened due to a filesystem error. Verify that the file exists.
     FileSystemError = AIC_ERROR_CODE_FILE_SYSTEM_ERROR,
-    /// Model data is not aligned to 64 bytes.
+    /// The model data is not aligned to 64 bytes.
     ModelDataUnaligned = AIC_ERROR_CODE_MODEL_DATA_UNALIGNED,
 };
 
@@ -87,30 +87,102 @@ template <typename T> struct Result
 };
 
 /**
- * Configurable parameters for audio enhancement.
+ * Configurable parameters for audio processing.
  */
 enum class ProcessorParameter : int
 {
-    /// Bypass keeping processing delay (0.0/1.0): 0.0=disabled, 1.0=enabled
+    /**
+     * Controls whether audio processing is bypassed while preserving algorithmic delay.
+     *
+     * When enabled, the input audio passes through unmodified, but the output is still
+     * delayed by the same amount as during normal processing. This ensures seamless
+     * transitions when toggling enhancement on/off without audible clicks or timing shifts.
+     *
+     * **Range:** 0.0 to 1.0
+     * - **0.0:** Enhancement active (normal processing)
+     * - **1.0:** Bypass enabled (latency-compensated passthrough)
+     *
+     * **Default:** 0.0
+     */
     Bypass = AIC_PROCESSOR_PARAMETER_BYPASS,
-    /// Enhancement intensity (0.0-1.0): 0.0=bypass, 1.0=full enhancement
+    /**
+     * Controls the intensity of speech enhancement processing.
+     *
+     * **Range:** 0.0 to 1.0
+     * - **0.0:** No enhancement - original signal passes through unchanged
+     * - **1.0:** Full enhancement - maximum noise reduction but also more audible artifacts
+     *
+     * **Default:** 1.0
+     */
     EnhancementLevel = AIC_PROCESSOR_PARAMETER_ENHANCEMENT_LEVEL,
-    /// Voice gain multiplier (0.1-4.0): linear amplitude multiplier
+    /**
+     * Compensates for perceived volume reduction after noise removal.
+     *
+     * **Range:** 0.1 to 4.0 (linear amplitude multiplier)
+     * - **0.1:** Significant volume reduction (-20 dB)
+     * - **1.0:** No gain change (0 dB, default)
+     * - **2.0:** Double amplitude (+6 dB)
+     * - **4.0:** Maximum boost (+12 dB)
+     *
+     * **Formula:** Gain (dB) = 20 × log₁₀(value)
+     * **Default:** 1.0
+     */
     VoiceGain = AIC_PROCESSOR_PARAMETER_VOICE_GAIN,
 };
 
 /**
- * Configurable parameters for voice activity detection (VAD).
+ * Configurable parameters for Voice Activity Detection.
  */
 enum class VadParameter : int
 {
-    /// Controls for how long the VAD continues to detect speech after the audio signal no longer
-    /// contains speech. (0.0 to 20x model window length in seconds)
+    /**
+     * Controls for how long the VAD continues to detect speech after the audio signal
+     * no longer contains speech.
+     *
+     * The VAD reports speech detected if the audio signal contained speech in at least 50%
+     * of the frames processed in the last `speech_hold_duration` seconds.
+     *
+     * This affects the stability of speech detected -> not detected transitions.
+     *
+     * NOTE: The VAD returns a value per processed buffer, so this duration is rounded
+     * to the closest model window length. For example, if the model has a processing window
+     * length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
+     * Because of this, this parameter may return a different value than the one it was last set to.
+     *
+     * **Range:** 0.0 to 20x model window length (value in seconds)
+     *
+     * **Default:** 0.05 (50 ms)
+     */
     SpeechHoldDuration = AIC_VAD_PARAMETER_SPEECH_HOLD_DURATION,
-    /// Controls the sensitivity (energy threshold) of the VAD. (1.0-15.0)
+    /**
+     * Controls the sensitivity (energy threshold) of the VAD.
+     *
+     * This value is used by the VAD as the threshold a
+     * speech audio signal's energy has to exceed in order to be
+     * considered speech.
+     *
+     * **Range:** 1.0 to 15.0
+     *
+     * **Formula:** Energy threshold = 10 ^ (-sensitivity)
+     *
+     * **Default:** 6.0
+     */
     Sensitivity = AIC_VAD_PARAMETER_SENSITIVITY,
-    /// Controls for how long speech needs to be present in the audio signal before the VAD
-    /// considers it speech (0.0 - 1.0 seconds).
+    /**
+     * Controls for how long speech needs to be present in the audio signal before
+     * the VAD considers it speech.
+     *
+     * This affects the stability of speech not detected -> detected transitions.
+     *
+     * NOTE: The VAD returns a value per processed buffer, so this duration is rounded
+     * to the closest model window length. For example, if the model has a processing window
+     * length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
+     * Because of this, this parameter may return a different value than the one it was last set to.
+     *
+     * **Range:** 0.0 to 1.0 (value in seconds)
+     *
+     * **Default:** 0.0
+     */
     MinimumSpeechDuration = AIC_VAD_PARAMETER_MINIMUM_SPEECH_DURATION,
 };
 
@@ -195,7 +267,9 @@ class Model
     static Result<Model> create_from_buffer(const uint8_t* buffer, size_t buffer_len);
 
     /**
-     * Returns the model identifier string.
+     * Returns a pointer to the model identifier.
+     *
+     * The returned string is UTF-8 encoded and null-terminated.
      *
      * @return Model identifier string (UTF-8).
      *
