@@ -24,7 +24,7 @@ enum class ErrorCode : int
     ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
     /// Processor must be initialized before calling this operation. Call Processor::initialize
     /// first.
-    ModelNotInitialized = AIC_ERROR_CODE_MODEL_NOT_INITIALIZED,
+    ProcessorNotInitialized = AIC_ERROR_CODE_PROCESSOR_NOT_INITIALIZED,
     /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
     AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
     /// Audio buffer configuration differs from the one provided during initialization.
@@ -149,7 +149,7 @@ enum class VadParameter : int
      * length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
      * Because of this, this parameter may return a different value than the one it was last set to.
      *
-     * **Range:** 0.0 to 20x model window length (value in seconds)
+     * **Range:** 0.0 to 100x model window length (value in seconds)
      *
      * **Default:** 0.05 (50 ms)
      */
