@@ -24,6 +24,7 @@ This release comes with a number of new features and several breaking changes. M
 - A single model instance can be shared across multiple processors.
 - Added `aic::Processor::create` so each stream can be initialized independently from a shared model while sharing weights.
 - Added `aic::get_compatible_model_version` to query the required model version for this SDK.
+- VAD speech hold duration parameter cap was increased to 100x the model's window length.
 - Added context-based APIs for thread-safe control operations:
     - `aic::ProcessorContext` for processor control and queries
     - `aic::VadContext` for VAD control and queries
@@ -53,12 +54,12 @@ This release comes with a number of new features and several breaking changes. M
 - VAD APIs now use `aic::VadContext` created from a processor.
 - Processor control APIs now live on `aic::ProcessorContext` (reset, parameter access, output delay).
 - Model query APIs now live on `aic::Model` (optimal sample rate/frames).
-- C++ wrapper breaking changes:
-    - `aic::AicModel` wrapper replaced by `aic::Model` + `aic::Processor`
-    - Model selection by enum removed; supply a model file or aligned buffer
-    - Parameter/reset/output delay APIs now live on `aic::ProcessorContext`
-    - VAD APIs now use `aic::VadContext` created from a processor
-    - `std::pair`/`std::unique_ptr` creation patterns replaced by `aic::Result<T>` + `take()`
+- `ErrorCode::ModelNotInitialized` was renamed to `ErrorCode::ProcessorNotInitialized`.
+- `aic::AicModel` wrapper replaced by `aic::Model` + `aic::Processor`
+- Model selection by enum removed; supply a model file or aligned buffer
+- Parameter/reset/output delay APIs now live on `aic::ProcessorContext`
+- VAD APIs now use `aic::VadContext` created from a processor
+- `std::pair`/`std::unique_ptr` creation patterns replaced by `aic::Result<T>` + `take()`
 
 ## Fixes
 
