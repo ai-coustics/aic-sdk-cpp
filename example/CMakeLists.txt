@@ -26,7 +26,7 @@ else()
     FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.12.0
+        GIT_TAG        0.14.0
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(aic_sdk)
@@ -36,3 +36,11 @@ add_executable(my_app main.cpp)
 
 # Link against the SDK
 target_link_libraries(my_app PRIVATE aic-sdk)
+
+if(APPLE)
+    target_link_libraries(my_app PRIVATE "-framework Security" "-framework CoreFoundation")
+endif()
+
+if(WIN32)
+    target_link_libraries(my_app PRIVATE crypt32)
+endif()

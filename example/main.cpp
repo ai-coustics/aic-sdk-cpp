@@ -2,133 +2,171 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <vector>
 
-int main()
+int main(int argc, char** argv)
 {
-    const char* license_env = std::getenv("AIC_SDK_LICENSE");
+    std::cout << "ai-coustics SDK version: " << aic::get_sdk_version() << "\n";
+    std::cout << "Compatible model version: " << aic::get_compatible_model_version() << "\n";
+
+    auto license_env = std::getenv("AIC_SDK_LICENSE");
     if (!license_env || std::string(license_env).empty())
     {
         std::cerr << "Error: Environment variable AIC_SDK_LICENSE not set.\n";
         return 1;
     }
-    std::string license_key(license_env);
+    auto license_key = std::string(license_env);
 
-    auto creation_result = aic::AicModel::create(aic::ModelType::Quail_L48, license_key);
-    std::unique_ptr<aic::AicModel>& model = creation_result.first;
-    aic::ErrorCode                  err   = creation_result.second;
+    auto model_path = std::string();
+    if (argc > 1 && argv[1] != nullptr)
+    {
+        model_path = argv[1];
+    }
 
-    if (err != aic::ErrorCode::Success)
+    if (model_path.empty())
+    {
+        std::cerr << "Error: Provide model path as argv[1]: `./my_app <model_path>`\n";
+        return 1;
+    }
+
+    auto model_result = aic::Model::create_from_file(model_path);
+    auto err          = model_result.error;
+
+    if (!model_result.ok())
     {
         std::cerr << "Model creation failed with error code: " << static_cast<int>(err) << "\n";
         return 1;
     }
 
-    uint32_t sample_rate = model->get_optimal_sample_rate();
-    size_t   num_frames  = model->get_optimal_num_frames(sample_rate);
-    std::cout << "Optimal sample rate: " << sample_rate << " Hz\n";
-    std::cout << "Optimal number of frames: " << num_frames << "\n";
-    uint16_t num_chans = 1;
+    auto model  = model_result.take();
 
-    err = model->initialize(sample_rate, num_chans, num_frames, false);
+    // Query optimal settings from the model
+    auto sample_rate = model.get_optimal_sample_rate();
+    auto num_frames = model.get_optimal_num_frames(sample_rate);
+
+    // Create configuration with optimal settings
+    aic::ProcessorConfig config(sample_rate, num_frames);  // mono, fixed frames
+
+    auto processor_result = aic::Processor::create(model, license_key);
+    err                   = processor_result.error;
+
+    if (!processor_result.ok())
+    {
+        std::cerr << "Processor creation failed with error code: " << static_cast<int>(err) << "\n";
+        return 1;
+    }
+
+    auto processor = processor_result.take();
+    err = processor.initialize(config.sample_rate, config.num_channels, config.num_frames,
+                               config.allow_variable_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Initialization failed\n";
         return 1;
     }
 
-    size_t output_delay = model->get_output_delay();
-    std::cout << "Output delay: " << output_delay << " samples\n";
-
-    // Create and test VAD
-    auto vad_creation_result = aic::AicVad::create(*model);
-    std::unique_ptr<aic::AicVad>& vad = vad_creation_result.first;
-    aic::ErrorCode                vad_err = vad_creation_result.second;
-
-    if (vad_err != aic::ErrorCode::Success)
+    auto ctx_result = processor.create_context();
+    if (!ctx_result.ok())
     {
-        std::cerr << "VAD creation failed with error code: " << static_cast<int>(vad_err) << "\n";
+        std::cerr << "Processor context creation failed\n";
         return 1;
     }
 
-    // Set VAD parameters
-    vad_err = vad->set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
-    if (vad_err != aic::ErrorCode::Success)
+    auto ctx          = ctx_result.take();
+    auto output_delay = ctx.get_output_delay();
+    std::cout << "Output delay: " << output_delay << " samples\n";
+
+    auto vad_result = processor.create_vad_context();
+    if (!vad_result.ok())
+    {
+        std::cerr << "VAD context creation failed\n";
+        return 1;
+    }
+
+    auto vad = vad_result.take();
+    err      = vad.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.1f);
+    if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set VAD speech hold duration\n";
         return 1;
     }
 
-    vad_err = vad->set_parameter(aic::VadParameter::Sensitivity, 8.0f);
-    if (vad_err != aic::ErrorCode::Success)
+    err = vad.set_parameter(aic::VadParameter::Sensitivity, 8.0f);
+    if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set VAD sensitivity\n";
         return 1;
     }
 
-    // Get VAD parameter values
-    float lookback = vad->get_parameter(aic::VadParameter::SpeechHoldDuration);
-    float sensitivity = vad->get_parameter(aic::VadParameter::Sensitivity);
-    std::cout << "VAD speech hold duration: " << lookback << "\n";
+    auto speech_hold_duration = vad.get_parameter(aic::VadParameter::SpeechHoldDuration);
+    auto sensitivity          = vad.get_parameter(aic::VadParameter::Sensitivity);
+    std::cout << "VAD speech hold duration: " << speech_hold_duration << "\n";
     std::cout << "VAD sensitivity: " << sensitivity << "\n";
 
-    // Test all available parameters
-    err = model->set_parameter(aic::EnhancementParameter::EnhancementLevel, 0.8f);
+    err = ctx.set_parameter(aic::ProcessorParameter::EnhancementLevel, 0.8f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set enhancement level\n";
         return 1;
     }
 
-    err = model->set_parameter(aic::EnhancementParameter::VoiceGain, 1.2f);
+    err = ctx.set_parameter(aic::ProcessorParameter::VoiceGain, 1.2f);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Failed to set voice gain\n";
         return 1;
     }
 
-    // Test both interleaved and planar processing
-    std::vector<float> buffer(num_frames * num_chans, 0.1f);
+    auto interleaved_buffer = std::vector<float>(config.num_frames * config.num_channels, 0.1f);
 
-    err = model->process_interleaved(buffer.data(), num_chans, num_frames);
+    err = processor.process_interleaved(interleaved_buffer.data(), config.num_channels,
+                                        config.num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Interleaved processing failed\n";
         return 1;
     }
 
-    // Test planar processing
-    std::vector<float*> channel_ptrs(num_chans);
-    for (uint16_t i = 0; i < num_chans; ++i)
+    auto planar_buffers = std::vector<std::vector<float>>(
+        config.num_channels, std::vector<float>(config.num_frames, 0.1f));
+    auto channel_ptrs = std::vector<float*>(config.num_channels);
+    for (uint16_t i = 0; i < config.num_channels; ++i)
     {
-        channel_ptrs[i] = buffer.data() + (i * num_frames);
+        channel_ptrs[i] = planar_buffers[i].data();
     }
 
-    err = model->process_planar(channel_ptrs.data(), num_chans, num_frames);
+    err = processor.process_planar(channel_ptrs.data(), config.num_channels, config.num_frames);
     if (err != aic::ErrorCode::Success)
     {
         std::cerr << "Planar processing failed\n";
         return 1;
     }
 
-    // Check if speech is detected after processing
-    bool speech_detected = vad->is_speech_detected();
-    if (vad_err != aic::ErrorCode::Success)
+    auto sequential_buffer = std::vector<float>(config.num_frames * config.num_channels, 0.1f);
+    err = processor.process_sequential(sequential_buffer.data(), config.num_channels,
+                                       config.num_frames);
+    if (err != aic::ErrorCode::Success)
     {
-        std::cerr << "Failed to check speech detection\n";
+        std::cerr << "Sequential processing failed\n";
         return 1;
     }
+
+    auto speech_detected = vad.is_speech_detected();
     std::cout << "Speech detected: " << (speech_detected ? "yes" : "no") << "\n";
 
-    // Get all parameter values to verify they were set correctly
-    float enhancement_level = model->get_parameter(aic::EnhancementParameter::EnhancementLevel);
-    float voice_gain        = model->get_parameter(aic::EnhancementParameter::VoiceGain);
+    auto enhancement_level = ctx.get_parameter(aic::ProcessorParameter::EnhancementLevel);
+    auto voice_gain        = ctx.get_parameter(aic::ProcessorParameter::VoiceGain);
 
     std::cout << "Enhancement level: " << enhancement_level << "\n";
     std::cout << "Voice gain: " << voice_gain << "\n";
 
-    model->reset();
+    err = ctx.reset();
+    if (err != aic::ErrorCode::Success)
+    {
+        std::cerr << "Reset failed\n";
+        return 1;
+    }
 
-    std::cout << "ai-coustics SDK version: " << aic::AicModel::get_sdk_version() << "\n";
     return 0;
 }

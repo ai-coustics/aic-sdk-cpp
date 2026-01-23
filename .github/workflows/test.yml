@@ -26,10 +26,24 @@ jobs:
       - name: Build
         run: cmake --build build -j
 
+      - name: Download model (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p build/models
+          curl -L -o build/models/sparrow_xxs_48khz_wsur2zkw_v7.aicmodel \
+            https://artifacts.ai-coustics.io/models/sparrow-xxs-48khz/v1/sparrow_xxs_48khz_wsur2zkw_v7.aicmodel
+
+      - name: Download model (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path build\\models | Out-Null
+          Invoke-WebRequest -Uri "https://artifacts.ai-coustics.io/models/sparrow-xxs-48khz/v1/sparrow_xxs_48khz_wsur2zkw_v7.aicmodel" -OutFile "build\\models\\sparrow_xxs_48khz_wsur2zkw_v7.aicmodel"
+
       - name: Run Example (Linux/macOS)
         if: runner.os != 'Windows'
-        run: ./build/my_app
+        run: ./build/my_app build/models/sparrow_xxs_48khz_wsur2zkw_v7.aicmodel
 
       - name: Run Example (Windows)
         if: runner.os == 'Windows'
-        run: .\build\Debug\my_app.exe
+        run: .\build\Debug\my_app.exe build\models\sparrow_xxs_48khz_wsur2zkw_v7.aicmodel
