@@ -30,7 +30,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           mkdir -p build/models
-          curl -L -o build/models/sparrow_xxs_48khz_wsur2zkw_v7.aicmodel \
+          curl -L -o build/models/sparrow_s_8khz_9q57ojki_v20.aicmodel \
           https://artifacts.ai-coustics.io/models/sparrow-s-8khz/v2/sparrow_s_8khz_9q57ojki_v20.aicmodel
 
       - name: Download model (Windows)
