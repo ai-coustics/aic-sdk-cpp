@@ -34,8 +34,6 @@ enum class ErrorCode : int
     EnhancementNotAllowed = AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED,
     /// Internal error occurred. Contact support.
     InternalError = AIC_ERROR_CODE_INTERNAL_ERROR,
-    /// The requested parameter is read-only for this model type and cannot be modified.
-    ParameterFixed = AIC_ERROR_CODE_PARAMETER_FIXED,
     /// License key format is invalid or corrupted. Verify the key was copied correctly.
     LicenseFormatInvalid = AIC_ERROR_CODE_LICENSE_FORMAT_INVALID,
     /// License version is not compatible with the SDK version. Update SDK or contact support.
@@ -115,19 +113,6 @@ enum class ProcessorParameter : int
      * **Default:** 1.0
      */
     EnhancementLevel = AIC_PROCESSOR_PARAMETER_ENHANCEMENT_LEVEL,
-    /**
-     * Compensates for perceived volume reduction after noise removal.
-     *
-     * **Range:** 0.1 to 4.0 (linear amplitude multiplier)
-     * - **0.1:** Significant volume reduction (-20 dB)
-     * - **1.0:** No gain change (0 dB, default)
-     * - **2.0:** Double amplitude (+6 dB)
-     * - **4.0:** Maximum boost (+12 dB)
-     *
-     * **Formula:** Gain (dB) = 20 × log₁₀(value)
-     * **Default:** 1.0
-     */
-    VoiceGain = AIC_PROCESSOR_PARAMETER_VOICE_GAIN,
 };
 
 /**
@@ -139,10 +124,16 @@ enum class VadParameter : int
      * Controls for how long the VAD continues to detect speech after the audio signal
      * no longer contains speech.
      *
-     * The VAD reports speech detected if the audio signal contained speech in at least 50%
-     * of the frames processed in the last `speech_hold_duration` seconds.
-     *
      * This affects the stability of speech detected -> not detected transitions.
+     *
+     * The VAD reports speech detected if the audio signal contained speech in at least 50%
+     * of the frames processed in the last `speech_hold_duration * 2` seconds.
+     *
+     * For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting speech
+     * in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming the
+     * VAD does not detect speech again during that period. If a few frames of speech are detected
+     * during that period, those frames will be included in the 50% calculation, which will extend
+     * the speech detection period until the 50% threshold is no longer met.
      *
      * NOTE: The VAD returns a value per processed buffer, so this duration is rounded
      * to the closest model window length. For example, if the model has a processing window
@@ -151,7 +142,7 @@ enum class VadParameter : int
      *
      * **Range:** 0.0 to 100x model window length (value in seconds)
      *
-     * **Default:** 0.05 (50 ms)
+     * **Default:** 0.03 (30 ms)
      */
     SpeechHoldDuration = AIC_VAD_PARAMETER_SPEECH_HOLD_DURATION,
     /**

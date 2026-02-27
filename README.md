@@ -5,7 +5,7 @@ C++ wrapper for the ai-coustics Speech Enhancement SDK.
 For comprehensive documentation, visit [docs.ai-coustics.com](https://docs.ai-coustics.com).
 
 > [!NOTE]
-> This SDK requires a license key. Generate your key at [developers.ai-coustics.io](https://developers.ai-coustics.io).
+> This SDK requires a license key. Generate your key at [developers.ai-coustics.com](https://developers.ai-coustics.com).
 
 ## Installation
 
@@ -19,7 +19,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
     aic_sdk
     GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-    GIT_TAG        0.14.0
+    GIT_TAG        0.15.0
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(aic_sdk)
@@ -177,7 +177,6 @@ ctx.reset();
 
 // Set enhancement parameters
 ctx.set_parameter(aic::ProcessorParameter::EnhancementLevel, 0.8f);
-ctx.set_parameter(aic::ProcessorParameter::VoiceGain, 1.5f);
 ctx.set_parameter(aic::ProcessorParameter::Bypass, 1.0f);
 
 // Get parameter values
