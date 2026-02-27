@@ -111,13 +111,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    err = ctx.set_parameter(aic::ProcessorParameter::VoiceGain, 1.2f);
-    if (err != aic::ErrorCode::Success)
-    {
-        std::cerr << "Failed to set voice gain\n";
-        return 1;
-    }
-
     auto interleaved_buffer = std::vector<float>(config.num_frames * config.num_channels, 0.1f);
 
     err = processor.process_interleaved(interleaved_buffer.data(), config.num_channels,
@@ -156,10 +149,7 @@ int main(int argc, char** argv)
     std::cout << "Speech detected: " << (speech_detected ? "yes" : "no") << "\n";
 
     auto enhancement_level = ctx.get_parameter(aic::ProcessorParameter::EnhancementLevel);
-    auto voice_gain        = ctx.get_parameter(aic::ProcessorParameter::VoiceGain);
-
     std::cout << "Enhancement level: " << enhancement_level << "\n";
-    std::cout << "Voice gain: " << voice_gain << "\n";
 
     err = ctx.reset();
     if (err != aic::ErrorCode::Success)
