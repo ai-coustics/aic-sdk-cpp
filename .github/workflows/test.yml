@@ -47,3 +47,29 @@ jobs:
       - name: Run Example (Windows)
         if: runner.os == 'Windows'
         run: .\build\Debug\my_app.exe build\models\sparrow_s_8khz_9q57ojki_v20.aicmodel
+
+  run-tests:
+    if: ${{ secrets.AIC_SDK_LICENSE != '' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest, windows-11-arm]
+    env:
+      AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure CMake (tests)
+        run: cmake -S ./test -B build-test
+
+      - name: Build tests
+        run: cmake --build build-test -j
+
+      - name: Run tests (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ctest --test-dir build-test --output-on-failure
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: ctest --test-dir build-test --output-on-failure -C Debug
