@@ -1,3 +1,12 @@
+# Running Tests
+
+```bash
+export AIC_SDK_LICENSE="<your-license-key>"
+cmake -B build ./test
+cmake --build build -j
+cd build && ctest --output-on-failure
+```
+
 # Release Steps
 
 1. Update CMake project version in `CMakeLists.txt`
