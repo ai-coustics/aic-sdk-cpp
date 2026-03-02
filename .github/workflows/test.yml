@@ -49,7 +49,6 @@ jobs:
         run: .\build\Debug\my_app.exe build\models\sparrow_s_8khz_9q57ojki_v20.aicmodel
 
   run-tests:
-    if: ${{ secrets.AIC_SDK_LICENSE != '' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
