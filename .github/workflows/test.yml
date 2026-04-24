@@ -30,20 +30,20 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           mkdir -p build/models
-          curl -L -o build/models/sparrow_s_8khz_9q57ojki_v20.aicmodel \
-          https://artifacts.ai-coustics.io/models/sparrow-s-8khz/v2/sparrow_s_8khz_9q57ojki_v20.aicmodel
+          curl -L -o build/models/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel \
+          https://artifacts.ai-coustics.io/models/quail-vf-2-1-s-16khz/v3/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel
 
       - name: Download model (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path build\\models | Out-Null
-          Invoke-WebRequest -Uri "https://artifacts.ai-coustics.io/models/sparrow-s-8khz/v2/sparrow_s_8khz_9q57ojki_v20.aicmodel" -OutFile "build\\models\\sparrow_s_8khz_9q57ojki_v20.aicmodel"
+          Invoke-WebRequest -Uri "https://artifacts.ai-coustics.io/models/quail-vf-2-1-s-16khz/v3/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel" -OutFile "build\\models\\quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel"
 
       - name: Run Example (Linux/macOS)
         if: runner.os != 'Windows'
-        run: ./build/my_app build/models/sparrow_s_8khz_9q57ojki_v20.aicmodel
+        run: ./build/my_app build/models/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel
 
       - name: Run Example (Windows)
         if: runner.os == 'Windows'
-        run: .\build\Debug\my_app.exe build\models\sparrow_s_8khz_9q57ojki_v20.aicmodel
+        run: .\build\Debug\my_app.exe build\models\quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel
