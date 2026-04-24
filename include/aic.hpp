@@ -104,14 +104,16 @@ enum class ProcessorParameter : int
      */
     Bypass = AIC_PROCESSOR_PARAMETER_BYPASS,
     /**
-     * A tunable parameter to optimize for specific STT engines, deployment environments, and user experience requirements.
+     * A tunable parameter to optimize for specific STT engines, deployment environments,
+     * and user experience requirements.
      *
      * The exact behavior depends on the active model:
+     * - **Quail Models:** Controls how aggressively the model suppresses noise. When used
+     *   with Quail Voice Focus, it also suppresses background and competing speech.
+     * - **Rook Models:** Controls the mixback and therefore the intensity of the
+     *   enhancement.
      *
-     * - Quail Models: Controls how aggressively the model suppresses noise. When used with Quail Voice Focus, it also suppresses background and competing speech.
-     * - Sparrow Models: Controls the mixback and therefore the intensity of the enhancement.
-     *
-     * Range: 0.0 to 1.0
+     * **Range:** 0.0 to 1.0
      */
     EnhancementLevel = AIC_PROCESSOR_PARAMETER_ENHANCEMENT_LEVEL,
 };
@@ -757,6 +759,10 @@ class Processor
      *
      * The planar function allows a maximum of 16 channels.
      *
+     *  * # Note
+     * All channels are mixed to mono for processing. To process channels
+     * independently, create separate processor instances.
+     *
      * @param audio Array of channel buffer pointers, one per channel.
      * @param num_channels Number of channels (must match initialization).
      * @param num_frames Number of samples per channel.
@@ -786,6 +792,10 @@ class Processor
      *   audio -> [ch0_f0, ch1_f0, ch0_f1, ch1_f1, ch0_f2, ch1_f2, ch0_f3, ch1_f3]
      *   ```
      *
+     *  * # Note
+     * All channels are mixed to mono for processing. To process channels
+     * independently, create separate processor instances.
+     *
      * @param audio Interleaved audio buffer of size num_channels * num_frames.
      * @param num_channels Number of channels (must match initialization).
      * @param num_frames Number of samples per channel.
@@ -814,6 +824,10 @@ class Processor
      *   ```
      *   audio -> [ch0_f0, ch0_f1, ch0_f2, ch0_f3, ch1_f0, ch1_f1, ch1_f2, ch1_f3]
      *   ```
+     *
+     *  * # Note
+     * All channels are mixed to mono for processing. To process channels
+     * independently, create separate processor instances.
      *
      * @param audio Sequential audio buffer of size num_channels * num_frames.
      * @param num_channels Number of channels (must match initialization).
