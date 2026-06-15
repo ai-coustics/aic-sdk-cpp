@@ -35,12 +35,7 @@ Result<Processor> Processor::create(const Model&       model,
                                     const std::string& license_key,
                                     const OtelConfig*  otel_config)
 {
-    static const bool wrapper_id_set = []()
-    {
-        aic_set_sdk_wrapper_id(1);
-        return true;
-    }();
-    (void) wrapper_id_set;
+    aic_set_sdk_wrapper_id(1);
 
     ::AicOtelConfig        c_otel{};
     const ::AicOtelConfig* c_otel_ptr = nullptr;
@@ -89,6 +84,25 @@ Result<VadContext> Processor::create_vad_context() const
     }
 
     return Result<VadContext>(VadContext(), static_cast<ErrorCode>(static_cast<int>(rc)));
+}
+
+Result<AnalyzerPair> AnalyzerPair::create(const Model& model, const std::string& license_key)
+{
+    aic_set_sdk_wrapper_id(1);
+
+    ::AicCollector* raw_collector = nullptr;
+    ::AicAnalyzer*  raw_analyzer  = nullptr;
+    ::AicErrorCode  rc            = aic_analyzer_pair_create(&raw_collector, &raw_analyzer,
+                                                             model.model_, license_key.c_str());
+
+    if (rc == AIC_ERROR_CODE_SUCCESS)
+    {
+        return Result<AnalyzerPair>(AnalyzerPair{Collector(raw_collector), Analyzer(raw_analyzer)},
+                                    ErrorCode::Success);
+    }
+
+    return Result<AnalyzerPair>(AnalyzerPair{Collector(), Analyzer()},
+                                static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
 } // namespace aic

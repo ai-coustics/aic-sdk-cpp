@@ -31,14 +31,14 @@ jobs:
         run: |
           mkdir -p build/models
           curl -L -o build/models/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel \
-          https://artifacts.ai-coustics.io/models/quail-vf-2-1-s-16khz/v4/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel
+          https://artifacts.ai-coustics.io/models/quail-vf-2-1-s-16khz/v5/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel
 
       - name: Download model (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path build\\models | Out-Null
-          Invoke-WebRequest -Uri "https://artifacts.ai-coustics.io/models/quail-vf-2-1-s-16khz/v4/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel" -OutFile "build\\models\\quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel"
+          Invoke-WebRequest -Uri "https://artifacts.ai-coustics.io/models/quail-vf-2-1-s-16khz/v5/quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel" -OutFile "build\\models\\quail_vf_2_1_s_16khz_5i8jb8of_v12.aicmodel"
 
       - name: Run Example (Linux/macOS)
         if: runner.os != 'Windows'
