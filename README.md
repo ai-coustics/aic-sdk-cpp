@@ -19,7 +19,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
     aic_sdk
     GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-    GIT_TAG        0.17.1
+    GIT_TAG        0.19.0
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(aic_sdk)
@@ -184,6 +184,37 @@ float level = ctx.get_parameter(aic::ProcessorParameter::EnhancementLevel);
 std::cout << "Enhancement level: " << level << "\n";
 ```
 
+### JWT Token Refresh
+
+When using a JWT license key, use `update_bearer_token` to swap in a renewed token while audio processing continues uninterrupted:
+
+```cpp
+auto ctx = processor.create_context().take();
+
+// Later, when the JWT needs renewal:
+auto err = ctx.update_bearer_token(new_jwt_string);
+if (err != aic::ErrorCode::Success) {
+    std::cerr << "Token update failed: " << static_cast<int>(err) << "\n";
+}
+```
+
+Both the original key and the new token must be JWTs. If either is not, the call returns `ErrorCode::TokenUpdateUnsupported`.
+
+### OpenTelemetry
+
+Pass an `OtelConfig` to `Processor::create` to enable telemetry for a specific session:
+
+```cpp
+aic::OtelConfig otel;
+otel.enable = true;
+otel.session_id = "my-session-id";  // nullptr = auto-generate
+otel.export_interval_ms = 5000;     // 0 = default (60 000 ms)
+
+auto processor = aic::Processor::create(model, license_key, &otel).take();
+```
+
+Alternatively, pass `nullptr` (the default) and set `AIC_SDK_OTEL_ENABLE=1` in the environment to enable telemetry globally.
+
 ### Voice Activity Detection (VAD)
 
 ```cpp
@@ -244,6 +275,7 @@ auto model = result.take();
 | `ModelFilePathInvalid` | Path to model file is invalid |
 | `AudioConfigUnsupported` | Audio configuration not supported by model |
 | `ParameterOutOfRange` | Parameter value outside acceptable range |
+| `TokenUpdateUnsupported` | In-place token update requires both original and new key to be JWTs |
 
 ## Building and Running the Example
 

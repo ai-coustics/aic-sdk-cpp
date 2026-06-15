@@ -31,7 +31,9 @@ Result<Model> Model::create_from_buffer(const uint8_t* buffer, size_t buffer_len
     return Result<Model>(Model(), static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
-Result<Processor> Processor::create(const Model& model, const std::string& license_key)
+Result<Processor> Processor::create(const Model&       model,
+                                    const std::string& license_key,
+                                    const OtelConfig*  otel_config)
 {
     static const bool wrapper_id_set = []()
     {
@@ -40,8 +42,19 @@ Result<Processor> Processor::create(const Model& model, const std::string& licen
     }();
     (void) wrapper_id_set;
 
+    ::AicOtelConfig        c_otel{};
+    const ::AicOtelConfig* c_otel_ptr = nullptr;
+    if (otel_config)
+    {
+        c_otel.enable             = otel_config->enable;
+        c_otel.session_id         = otel_config->session_id;
+        c_otel.export_interval_ms = otel_config->export_interval_ms;
+        c_otel_ptr                = &c_otel;
+    }
+
     ::AicProcessor* raw_processor = nullptr;
-    ::AicErrorCode  rc = aic_processor_create(&raw_processor, model.model_, license_key.c_str());
+    ::AicErrorCode  rc =
+        aic_processor_create(&raw_processor, model.model_, license_key.c_str(), c_otel_ptr);
 
     if (rc == AIC_ERROR_CODE_SUCCESS)
     {
