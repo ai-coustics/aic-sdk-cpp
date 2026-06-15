@@ -50,6 +50,8 @@ enum class ErrorCode : int
     FileSystemError = AIC_ERROR_CODE_FILE_SYSTEM_ERROR,
     /// The model data is not aligned to 64 bytes.
     ModelDataUnaligned = AIC_ERROR_CODE_MODEL_DATA_UNALIGNED,
+    /// In-place token update is only supported when both the original and new keys are JWTs.
+    TokenUpdateUnsupported = AIC_ERROR_CODE_TOKEN_UPDATE_UNSUPPORTED,
 };
 
 /**
@@ -82,6 +84,23 @@ template <typename T> struct Result
     {
         return std::move(value);
     }
+};
+
+/**
+ * OpenTelemetry configuration for a processor session.
+ *
+ * Pass a pointer to this struct as the `otel_config` argument of `Processor::create`
+ * to enable telemetry and optionally associate it with a specific session ID.
+ * Pass `nullptr` to use the environment variable `AIC_SDK_OTEL_ENABLE` instead.
+ */
+struct OtelConfig
+{
+    /// Whether to enable OpenTelemetry telemetry.
+    bool enable = false;
+    /// Optional session ID. nullptr = auto-generate.
+    const char* session_id = nullptr;
+    /// Export interval in milliseconds. 0 = default (60 000 ms).
+    uint32_t export_interval_ms = 0;
 };
 
 /**
@@ -149,17 +168,19 @@ enum class VadParameter : int
      */
     SpeechHoldDuration = AIC_VAD_PARAMETER_SPEECH_HOLD_DURATION,
     /**
-     * Controls the sensitivity (energy threshold) of the VAD.
+     * Controls the sensitivity of the VAD.
      *
-     * This value is used by the VAD as the threshold a
-     * speech audio signal's energy has to exceed in order to be
-     * considered speech.
+     * Interpretation depends on the active VAD model:
      *
-     * **Range:** 1.0 to 15.0
+     * - **VAD models** (e.g. Quail VAD): probability threshold above which speech is reported.
+     *   **Range:** 0.0 to 1.0
      *
-     * **Formula:** Energy threshold = 10 ^ (-sensitivity)
+     * - **Energy-based VADs** (e.g. Quail, Rook enhancement models): energy threshold for
+     *   detecting speech presence. **Formula:** Energy threshold = 10 ^ (-sensitivity).
+     *   Higher values require less energy in the signal, resulting in more aggressive detection.
+     *   **Range:** 1.0 to 15.0
      *
-     * **Default:** 6.0
+     * **Default:** model-specific
      */
     Sensitivity = AIC_VAD_PARAMETER_SENSITIVITY,
     /**
@@ -524,6 +545,29 @@ class ProcessorContext
         return latency;
     }
 
+    /**
+     * Replaces the bearer token on a running processor.
+     *
+     * Use this when your license key is a JWT and needs to be refreshed before it expires.
+     * Audio processing continues uninterrupted; the context handle stays valid and the new
+     * token is used for all subsequent authentication.
+     *
+     * In-place updates are only supported when both the original key and the new token are
+     * JWTs. If either side is not a JWT, returns ErrorCode::TokenUpdateUnsupported and the
+     * existing token stays in use.
+     *
+     * @param token New JWT token string.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @note Thread-safe. Safe to call concurrently with audio processing.
+     * @warning Not real-time safe; allocates memory and performs cryptographic work.
+     */
+    ErrorCode update_bearer_token(const std::string& token) const
+    {
+        ::AicErrorCode rc = aic_processor_context_update_bearer_token(context_, token.c_str());
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
   private:
     // Friend declaration: allows Processor to construct ProcessorContext instances from raw handles
     friend class Processor;
@@ -711,12 +755,16 @@ class Processor
      * or to switch between different enhancement algorithms during runtime.
      *
      * @param model Model instance to process.
-     * @param license_key SDK license key.
+     * @param license_key SDK license key. Accepts both regular license keys and JWT tokens.
+     * @param otel_config Optional OpenTelemetry configuration. Pass nullptr to use the
+     *                    `AIC_SDK_OTEL_ENABLE` environment variable instead.
      * @return Result containing the Processor and an ErrorCode.
      *
      * @warning Not thread-safe. Ensure no other threads are using the processor handle.
      */
-    static Result<Processor> create(const Model& model, const std::string& license_key);
+    static Result<Processor> create(const Model&       model,
+                                    const std::string& license_key,
+                                    const OtelConfig*  otel_config = nullptr);
 
     /**
      * Configures the processor for a specific audio format.
