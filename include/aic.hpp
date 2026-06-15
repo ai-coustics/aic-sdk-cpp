@@ -52,6 +52,9 @@ enum class ErrorCode : int
     ModelDataUnaligned = AIC_ERROR_CODE_MODEL_DATA_UNALIGNED,
     /// In-place token update is only supported when both the original and new keys are JWTs.
     TokenUpdateUnsupported = AIC_ERROR_CODE_TOKEN_UPDATE_UNSUPPORTED,
+    /// The model type is not supported by the processor (e.g. passing an analysis model to a
+    /// Processor, or a non-analysis model to an analyzer pair).
+    ModelTypeUnsupported = AIC_ERROR_CODE_MODEL_TYPE_UNSUPPORTED,
 };
 
 /**
@@ -101,6 +104,32 @@ struct OtelConfig
     const char* session_id = nullptr;
     /// Export interval in milliseconds. 0 = default (60 000 ms).
     uint32_t export_interval_ms = 0;
+};
+
+/**
+ * The result of analyzing a signal with an Analyzer.
+ *
+ * Every score ranges from 0.0 to 1.0. For all measures except `speaker_loudness`,
+ * a lower value indicates less problematic audio.
+ */
+struct AnalysisResult
+{
+    /// Headline audio score. Predicts likelihood of failure of downstream models including
+    /// speech-to-text, voice activity detection, turn-taking or speech-to-speech models.
+    float risk_score;
+    /// Measure of speaker distance and reverberance.
+    float speaker_reverb;
+    /// Measure of speaker loudness.
+    float speaker_loudness;
+    /// Measure of interference from additional speakers present in audio.
+    float interfering_speech;
+    /// Measure of interfering speech content from media devices (TVs, radios, phones, etc.).
+    float media_speech;
+    /// Measure of ambient or environmental noise.
+    float noise;
+    /// Measure of audio dropouts or discontinuities (packet loss, frame erasure, jitter, CPU
+    /// overload).
+    float packet_loss;
 };
 
 /**
@@ -373,8 +402,10 @@ class Model
     }
 
   private:
-    // Friend declaration: allows Processor to access the raw model handle for creation.
+    // Friend declarations: allow Processor and AnalyzerPair to access the raw model handle for
+    // creation.
     friend class Processor;
+    friend struct AnalyzerPair;
 
     // Creates an empty Model wrapper for internal use when creation fails.
     Model() : model_(nullptr) {}
@@ -526,6 +557,10 @@ class ProcessorContext
      * Use this value to synchronize enhanced audio with other streams or to implement
      * delay compensation in your application.
      *
+     * For an enhancement model this is the latency of the enhanced audio. For a dedicated VAD
+     * model the audio passes through unchanged and this is the VAD prediction latency: how many
+     * samples a speech decision lags behind the input it describes.
+     *
      * @return Output delay in samples.
      *
      * @note Before initialization, returns the base processing delay using the
@@ -632,8 +667,9 @@ class VadContext
      * Returns the VAD's prediction.
      *
      * **Important:**
-     * - The latency of the VAD prediction is equal to
-     *   the backing processor's processing latency.
+     * - The latency of the VAD prediction is equal to the backing processor's processing
+     *   latency, reported by ProcessorContext::get_output_delay. The prediction lags its input
+     *   by that many samples even for a dedicated VAD model whose audio passes through untouched.
      * - If the backing processor stops being processed,
      *   the VAD will not update its speech detection prediction.
      *
@@ -927,6 +963,317 @@ class Processor
     // Constructor: wraps an existing SDK processor handle; this instance becomes responsible for
     // destroying it
     explicit Processor(::AicProcessor* processor) : processor_(processor) {}
+};
+
+// ---------------------------
+// Collector wrapper
+// ---------------------------
+
+/**
+ * Buffers audio in the real-time thread for later, non-real-time analysis.
+ *
+ * A Collector is created together with an Analyzer via AnalyzerPair::create. Place the
+ * Collector in your audio thread and feed it audio with the buffer_* methods, mirroring the
+ * Processor process_* calls. The Analyzer then reads the buffered audio from another thread.
+ *
+ * The Collector retains a span of audio determined by the analysis model; as new samples are
+ * buffered, the oldest audio is discarded.
+ */
+class Collector
+{
+  private:
+    ::AicCollector* collector_;
+
+  public:
+    // Destructor: releases the underlying SDK collector handle if one is owned
+    ~Collector()
+    {
+        if (collector_)
+        {
+            aic_collector_destroy(collector_);
+        }
+    }
+
+    // Move constructor: the handle from the source Collector gets moved into the new Collector
+    Collector(Collector&& other) noexcept : collector_(other.collector_)
+    {
+        other.collector_ = nullptr;
+    }
+
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
+    Collector& operator=(Collector&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (collector_)
+            {
+                aic_collector_destroy(collector_);
+            }
+            collector_       = other.collector_;
+            other.collector_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    Collector(const Collector&) = delete;
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
+    Collector& operator=(const Collector&) = delete;
+
+    /**
+     * Configures the collector for a specific audio format.
+     *
+     * Must be called before buffering any audio. Use the same configuration as the Processor
+     * for the corresponding model.
+     *
+     * @param sample_rate Audio sample rate in Hz (8000 - 192000).
+     * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.).
+     * @param num_frames Number of samples per channel in each buffer call.
+     * @param allow_variable_frames Allows varying frame counts per call (up to num_frames).
+     * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
+     *
+     * @note All channels are mixed to mono for buffering.
+     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
+     */
+    ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
+                         bool allow_variable_frames)
+    {
+        ::AicErrorCode rc = aic_collector_initialize(collector_, sample_rate, num_channels,
+                                                     num_frames, allow_variable_frames);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Buffers audio with separate buffers for each channel (planar layout).
+     *
+     * The input audio is read-only and is not modified. Maximum of 16 channels.
+     *
+     * @param audio Array of channel buffer pointers, one per channel.
+     * @param num_channels Number of channels (must match initialization).
+     * @param num_frames Number of samples per channel.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     */
+    ErrorCode buffer_planar(const float* const* audio, uint16_t num_channels, size_t num_frames)
+    {
+        ::AicErrorCode rc =
+            aic_collector_buffer_planar(collector_, audio, num_channels, num_frames);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Buffers audio with interleaved channels in a single buffer.
+     *
+     * The input audio is read-only and is not modified.
+     *
+     * @param audio Interleaved audio buffer of size num_channels * num_frames.
+     * @param num_channels Number of channels (must match initialization).
+     * @param num_frames Number of samples per channel.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     */
+    ErrorCode buffer_interleaved(const float* audio, uint16_t num_channels, size_t num_frames)
+    {
+        ::AicErrorCode rc =
+            aic_collector_buffer_interleaved(collector_, audio, num_channels, num_frames);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Buffers audio with sequential channel data in a single buffer.
+     *
+     * The input audio is read-only and is not modified.
+     *
+     * @param audio Sequential audio buffer of size num_channels * num_frames.
+     * @param num_channels Number of channels (must match initialization).
+     * @param num_frames Number of samples per channel.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     */
+    ErrorCode buffer_sequential(const float* audio, uint16_t num_channels, size_t num_frames)
+    {
+        ::AicErrorCode rc =
+            aic_collector_buffer_sequential(collector_, audio, num_channels, num_frames);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+  private:
+    // Friend declaration: allows AnalyzerPair to construct Collector instances from raw handles
+    friend struct AnalyzerPair;
+
+    // Constructor: creates an empty collector wrapper for internal use when creation fails
+    Collector() : collector_(nullptr) {}
+    // Constructor: wraps an existing SDK collector handle; this instance becomes responsible for
+    // destroying it
+    explicit Collector(::AicCollector* collector) : collector_(collector) {}
+};
+
+// ---------------------------
+// Analyzer wrapper
+// ---------------------------
+
+/**
+ * Runs the analysis model over audio buffered by its paired Collector.
+ *
+ * Analysis models are computationally expensive and must not run in the audio thread. Run the
+ * Analyzer on a separate thread; it reads the audio buffered by the Collector safely across
+ * threads. The Collector and Analyzer are independent and can be destroyed in any order.
+ */
+class Analyzer
+{
+  private:
+    ::AicAnalyzer* analyzer_;
+
+  public:
+    // Destructor: releases the underlying SDK analyzer handle if one is owned
+    ~Analyzer()
+    {
+        if (analyzer_)
+        {
+            aic_analyzer_destroy(analyzer_);
+        }
+    }
+
+    // Move constructor: the handle from the source Analyzer gets moved into the new Analyzer
+    Analyzer(Analyzer&& other) noexcept : analyzer_(other.analyzer_)
+    {
+        other.analyzer_ = nullptr;
+    }
+
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
+    Analyzer& operator=(Analyzer&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (analyzer_)
+            {
+                aic_analyzer_destroy(analyzer_);
+            }
+            analyzer_       = other.analyzer_;
+            other.analyzer_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    Analyzer(const Analyzer&) = delete;
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
+    Analyzer& operator=(const Analyzer&) = delete;
+
+    /**
+     * Clears all internal state and buffers of both the analyzer and its collector.
+     *
+     * Call this when the audio stream is interrupted or when seeking to prevent mispredictions
+     * from previous audio content. The collector stays initialized to the configured settings.
+     *
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    ErrorCode reset() const
+    {
+        ::AicErrorCode rc = aic_analyzer_reset(analyzer_);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Analyzes the buffered signal.
+     *
+     * Runs a forward pass of the analysis model over a fixed length of audio determined by the
+     * model. If called before the collector has buffered that much audio, the tail of the input
+     * is padded with silence.
+     *
+     * @return Result containing the AnalysisResult scores and an ErrorCode.
+     *
+     * @warning Not real-time safe and not thread-safe; do not call from real-time audio threads
+     *          or from multiple threads.
+     */
+    Result<AnalysisResult> analyze_buffered()
+    {
+        ::AicAnalysisResult raw{};
+        ::AicErrorCode      rc = aic_analyzer_analyze_buffered(analyzer_, &raw);
+
+        if (rc == AIC_ERROR_CODE_SUCCESS)
+        {
+            AnalysisResult out{raw.risk_score,        raw.speaker_reverb, raw.speaker_loudness,
+                               raw.interfering_speech, raw.media_speech,   raw.noise,
+                               raw.packet_loss};
+            return Result<AnalysisResult>(out, ErrorCode::Success);
+        }
+
+        return Result<AnalysisResult>(AnalysisResult{}, static_cast<ErrorCode>(static_cast<int>(rc)));
+    }
+
+    /**
+     * Replaces the bearer token on a running analyzer.
+     *
+     * Use this when your license key is a JWT and needs to be refreshed before it expires. The
+     * analyzer handle stays valid and buffered audio remains available.
+     *
+     * In-place updates are only supported when both the original key and the new token are JWTs.
+     * If either side is not a JWT, returns ErrorCode::TokenUpdateUnsupported and the existing
+     * token stays in use.
+     *
+     * @param token New JWT token string.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @note Safe to call concurrently with collector buffering. Do not call concurrently with
+     *       analyze_buffered on the same analyzer.
+     * @warning Not real-time safe; locks a mutex and allocates memory.
+     */
+    ErrorCode update_bearer_token(const std::string& token) const
+    {
+        ::AicErrorCode rc = aic_analyzer_update_bearer_token(analyzer_, token.c_str());
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+  private:
+    // Friend declaration: allows AnalyzerPair to construct Analyzer instances from raw handles
+    friend struct AnalyzerPair;
+
+    // Constructor: creates an empty analyzer wrapper for internal use when creation fails
+    Analyzer() : analyzer_(nullptr) {}
+    // Constructor: wraps an existing SDK analyzer handle; this instance becomes responsible for
+    // destroying it
+    explicit Analyzer(::AicAnalyzer* analyzer) : analyzer_(analyzer) {}
+};
+
+// ---------------------------
+// Collector / Analyzer pair
+// ---------------------------
+
+/**
+ * A Collector and its paired Analyzer, created together for non-real-time audio analysis.
+ *
+ * Create one with AnalyzerPair::create, then move the members out as needed: the `collector`
+ * belongs in the audio thread and the `analyzer` runs elsewhere. The two are independent and
+ * may be destroyed in any order.
+ */
+struct AnalyzerPair
+{
+    Collector collector;
+    Analyzer  analyzer;
+
+    /**
+     * Creates a Collector and Analyzer pair for the given analysis model.
+     *
+     * @param model Analysis model instance (e.g. Tyto).
+     * @param license_key SDK license key. Accepts both regular license keys and JWT tokens.
+     * @return Result containing the AnalyzerPair and an ErrorCode. Returns
+     *         ErrorCode::ModelTypeUnsupported if the model is not an analysis model.
+     *
+     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
+     */
+    static Result<AnalyzerPair> create(const Model& model, const std::string& license_key);
 };
 
 // ---------------------------

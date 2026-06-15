@@ -19,7 +19,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
     aic_sdk
     GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-    GIT_TAG        0.19.0
+    GIT_TAG        0.20.0
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(aic_sdk)
@@ -236,6 +236,33 @@ if (vad.is_speech_detected()) {
 }
 ```
 
+### Audio Analysis
+
+Analysis models (such as Tyto) score audio for problems that can degrade downstream models. Analysis is split into two pieces: a `Collector` that buffers audio in the real-time thread, and an `Analyzer` that runs the (expensive) analysis model on a separate thread.
+
+```cpp
+// Create the pair from an analysis model
+auto pair = aic::AnalyzerPair::create(model, license_key).take();
+auto collector = std::move(pair.collector);  // belongs in the audio thread
+auto analyzer = std::move(pair.analyzer);    // run on a separate thread
+
+// Configure the collector like a processor
+collector.initialize(sample_rate, num_channels, num_frames, false);
+
+// In the audio thread: buffer audio (input is read-only, not modified)
+collector.buffer_interleaved(audio.data(), num_channels, num_frames);
+
+// On another thread: analyze the latest buffered audio
+auto result = analyzer.analyze_buffered();
+if (result.ok()) {
+    const aic::AnalysisResult& scores = result.value;
+    std::cout << "Risk score: " << scores.risk_score << "\n";
+    std::cout << "Noise: " << scores.noise << "\n";
+}
+```
+
+`AnalyzerPair::create` returns `ErrorCode::ModelTypeUnsupported` if the model is not an analysis model. The `Collector` and `Analyzer` are independent and can be destroyed in any order.
+
 ### Error Handling
 
 The SDK uses a `Result<T>` type for operations that can fail. All error conditions are represented by the `aic::ErrorCode` enum.
@@ -276,6 +303,7 @@ auto model = result.take();
 | `AudioConfigUnsupported` | Audio configuration not supported by model |
 | `ParameterOutOfRange` | Parameter value outside acceptable range |
 | `TokenUpdateUnsupported` | In-place token update requires both original and new key to be JWTs |
+| `ModelTypeUnsupported` | Model type not supported by the processor or analyzer (e.g. wrong model kind) |
 
 ## Building and Running the Example
 
