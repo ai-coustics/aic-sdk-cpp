@@ -687,6 +687,37 @@ class VadContext
     }
 
     /**
+     * Returns the raw prediction of the VAD, without any processing.
+     *
+     * In contrast to is_speech_detected(), this returns the model's direct prediction without
+     * going through the SDK's VAD post-processing, such as speech hold duration and sensitivity
+     * thresholding.
+     *
+     * This value may be used to build other abstractions on top of this data.
+     *
+     * **Important:**
+     * - This value is only useful when using a VAD model. When using an energy-based VAD,
+     *   the raw prediction is set to 1.0 or 0.0 depending on whether is_speech_detected()
+     *   is true or false.
+     * - The latency of the VAD prediction is equal to the backing processor's processing
+     *   latency, reported by ProcessorContext::get_output_delay. The prediction lags its input
+     *   by that many samples even for a dedicated VAD model whose audio passes through untouched.
+     * - If the backing processor stops being processed, the VAD will not update its prediction.
+     *
+     * @return Raw VAD probability.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    float get_raw_vad_probability() const
+    {
+        float          value = 0.0f;
+        ::AicErrorCode rc    = aic_vad_context_get_raw_vad_probability(context_, &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+    /**
      * Modifies a VAD parameter.
      *
      * All parameters can be changed during audio processing.
