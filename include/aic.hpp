@@ -22,16 +22,16 @@ enum class ErrorCode : int
     NullPointer = AIC_ERROR_CODE_NULL_POINTER,
     /// Parameter value is outside the acceptable range. Check documentation for valid values.
     ParameterOutOfRange = AIC_ERROR_CODE_PARAMETER_OUT_OF_RANGE,
-    /// Processor must be initialized before calling this operation. Call Processor::initialize
-    /// first.
-    ProcessorNotInitialized = AIC_ERROR_CODE_PROCESSOR_NOT_INITIALIZED,
-    /// Audio configuration (samplerate, num_channels, num_frames) is not supported by the model.
+    /// Handle must be initialized before calling this operation. Call Processor::initialize,
+    /// Vad::initialize or Collector::initialize first.
+    NotInitialized = AIC_ERROR_CODE_NOT_INITIALIZED,
+    /// Audio configuration (sample_rate, block_size) is not supported by the model.
     AudioConfigUnsupported = AIC_ERROR_CODE_AUDIO_CONFIG_UNSUPPORTED,
-    /// Audio buffer configuration differs from the one provided during initialization.
+    /// Audio block configuration differs from the one provided during initialization.
     AudioConfigMismatch = AIC_ERROR_CODE_AUDIO_CONFIG_MISMATCH,
-    /// SDK key was not authorized or process failed to report usage. Check if you have internet
-    /// connection.
-    EnhancementNotAllowed = AIC_ERROR_CODE_ENHANCEMENT_NOT_ALLOWED,
+    /// Processing is not allowed because the SDK key was not authorized or usage reporting failed.
+    /// Check if you have an internet connection.
+    ProcessingNotAllowed = AIC_ERROR_CODE_PROCESSING_NOT_ALLOWED,
     /// Internal error occurred. Contact support.
     InternalError = AIC_ERROR_CODE_INTERNAL_ERROR,
     /// License key format is invalid or corrupted. Verify the key was copied correctly.
@@ -40,20 +40,20 @@ enum class ErrorCode : int
     LicenseVersionUnsupported = AIC_ERROR_CODE_LICENSE_VERSION_UNSUPPORTED,
     /// License key has expired. Renew your license to continue.
     LicenseExpired = AIC_ERROR_CODE_LICENSE_EXPIRED,
+    /// In-place token update is only supported when both the original and new keys are JWTs.
+    TokenUpdateUnsupported = AIC_ERROR_CODE_TOKEN_UPDATE_UNSUPPORTED,
     /// The model file is invalid or corrupted. Verify the file is correct.
     ModelInvalid = AIC_ERROR_CODE_MODEL_INVALID,
     /// The model file version is not compatible with this SDK version.
     ModelVersionUnsupported = AIC_ERROR_CODE_MODEL_VERSION_UNSUPPORTED,
-    /// The path to the model file is invalid.
-    ModelFilePathInvalid = AIC_ERROR_CODE_MODEL_FILE_PATH_INVALID,
+    /// The file path is invalid.
+    FilePathInvalid = AIC_ERROR_CODE_FILE_PATH_INVALID,
     /// The model file cannot be opened due to a filesystem error. Verify that the file exists.
     FileSystemError = AIC_ERROR_CODE_FILE_SYSTEM_ERROR,
     /// The model data is not aligned to 64 bytes.
     ModelDataUnaligned = AIC_ERROR_CODE_MODEL_DATA_UNALIGNED,
-    /// In-place token update is only supported when both the original and new keys are JWTs.
-    TokenUpdateUnsupported = AIC_ERROR_CODE_TOKEN_UPDATE_UNSUPPORTED,
-    /// The model type is not supported by the processor (e.g. passing an analysis model to a
-    /// Processor, or a non-analysis model to an analyzer pair).
+    /// The model type is not supported by the requested API (e.g. passing a VAD model to a
+    /// Processor, an enhancement model to a Vad, or a non-analysis model to an analyzer pair).
     ModelTypeUnsupported = AIC_ERROR_CODE_MODEL_TYPE_UNSUPPORTED,
 };
 
@@ -90,10 +90,10 @@ template <typename T> struct Result
 };
 
 /**
- * OpenTelemetry configuration for a processor session.
+ * OpenTelemetry configuration for a processor or VAD session.
  *
- * Pass a pointer to this struct as the `otel_config` argument of `Processor::create`
- * to enable telemetry and optionally associate it with a specific session ID.
+ * Pass a pointer to this struct as the `otel_config` argument of `Processor::create` or
+ * `Vad::create` to enable telemetry and optionally associate it with a specific session ID.
  * Pass `nullptr` to use the environment variable `AIC_SDK_OTEL_ENABLE` instead.
  */
 struct OtelConfig
@@ -178,36 +178,35 @@ enum class VadParameter : int
      * This affects the stability of speech detected -> not detected transitions.
      *
      * The VAD reports speech detected if the audio signal contained speech in at least 50%
-     * of the frames processed in the last `speech_hold_duration * 2` seconds.
+     * of the blocks processed in the last `speech_hold_duration * 2` seconds.
      *
-     * For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting speech
-     * in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming the
-     * VAD does not detect speech again during that period. If a few frames of speech are detected
-     * during that period, those frames will be included in the 50% calculation, which will extend
-     * the speech detection period until the 50% threshold is no longer met.
+     * For example, if `speech_hold_duration` is set to 0.5 seconds and the VAD stops detecting
+     * speech in the audio signal, the VAD will continue to report speech for 0.5 seconds assuming
+     * the VAD does not detect speech again during that period. If a few blocks of speech are
+     * detected during that period, those blocks will be included in the 50% calculation, which
+     * will extend the speech detection period until the 50% threshold is no longer met.
      *
-     * NOTE: The VAD returns a value per processed buffer, so this duration is rounded
+     * NOTE: The VAD returns a value per processed audio block, so this duration is rounded
      * to the closest model window length. For example, if the model has a processing window
      * length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
      * Because of this, this parameter may return a different value than the one it was last set to.
      *
      * **Range:** 0.0 to 300x model window length (value in seconds)
      *
-     * **Default:** 0.03 (30 ms)
+     * **Default:** model-specific
      */
     SpeechHoldDuration = AIC_VAD_PARAMETER_SPEECH_HOLD_DURATION,
     /**
      * Controls the sensitivity of the VAD.
      *
-     * Interpretation depends on the active VAD model:
+     * VAD models output a probability of speech presence for each processed audio block,
+     * 1.0 being the model is certain speech is present and 0.0 being the model is certain
+     * speech is not present. The probability is compared against the sensitivity threshold
+     * to determine if speech is detected.
      *
-     * - **VAD models** (e.g. Quail VAD): probability threshold above which speech is reported.
-     *   **Range:** 0.0 to 1.0
+     * A value above the threshold will trigger a speech detected decision.
      *
-     * - **Energy-based VADs** (e.g. Quail, Rook enhancement models): energy threshold for
-     *   detecting speech presence. **Formula:** Energy threshold = 10 ^ (-sensitivity).
-     *   Higher values require less energy in the signal, resulting in more aggressive detection.
-     *   **Range:** 1.0 to 15.0
+     * **Range:** 0.0 to 1.0
      *
      * **Default:** model-specific
      */
@@ -218,14 +217,14 @@ enum class VadParameter : int
      *
      * This affects the stability of speech not detected -> detected transitions.
      *
-     * NOTE: The VAD returns a value per processed buffer, so this duration is rounded
+     * NOTE: The VAD returns a value per processed audio block, so this duration is rounded
      * to the closest model window length. For example, if the model has a processing window
      * length of 10 ms, the VAD will round up/down to the closest multiple of 10 ms.
      * Because of this, this parameter may return a different value than the one it was last set to.
      *
      * **Range:** 0.0 to 1.0 (value in seconds)
      *
-     * **Default:** 0.0
+     * **Default:** model-specific
      */
     MinimumSpeechDuration = AIC_VAD_PARAMETER_MINIMUM_SPEECH_DURATION,
 };
@@ -281,14 +280,17 @@ class Model
     /**
      * Creates a new model instance from a model file.
      *
-     * A single model instance can be used to create multiple processors.
+     * A single model instance can be used to create multiple processors, VADs or analyzers,
+     * according to the model type.
      *
      * @param file_path Path to the model file.
      * @return Result containing the Model and an ErrorCode.
      *
-     * @note Processor instances retain a shared reference to the model data.
-     *       It is safe to destroy the Model after creating the desired processors.
-     *       The memory used by the model is freed after all processors are destroyed.
+     * @note Processor, Vad and Analyzer instances retain a shared reference to the model data.
+     *       It is safe to destroy the Model after creating the desired objects.
+     *       The memory used by the model is freed after all of them are destroyed.
+     * @warning The file must not be modified or deleted while the Model, or any object created
+     *          from it, is alive.
      * @warning Not thread-safe. Ensure no other threads are using the model handle or the same file
      * path.
      */
@@ -303,9 +305,9 @@ class Model
      * @param buffer_len Size of the model buffer in bytes.
      * @return Result containing the Model and an ErrorCode.
      *
-     * @note Processor instances retain a shared reference to the model data.
-     *       It is safe to destroy the Model after creating the desired processors.
-     *       The memory used by the model is freed after all processors are destroyed.
+     * @note Processor, Vad and Analyzer instances retain a shared reference to the model data.
+     *       It is safe to destroy the Model after creating the desired objects.
+     *       The memory used by the model is freed after all of them are destroyed.
      * @warning Not thread-safe. Ensure no other threads are using the model handle.
      */
     static Result<Model> create_from_buffer(const uint8_t* buffer, size_t buffer_len);
@@ -346,12 +348,12 @@ class Model
      * the original, maintaining the full frequency spectrum of your input while adding
      * the model's noise reduction capabilities to the lower frequencies.
      *
-     * **Sample rate and optimal frames relationship:**
+     * **Sample rate and optimal block size relationship:**
      *
-     * When using different sample rates than the model's native rate, the optimal number
-     * of frames (returned by Model::get_optimal_num_frames) will change. The processor's output
-     * delay remains constant regardless of sample rate as long as you use the optimal frame
-     * count for that rate.
+     * When using different sample rates than the model's native rate, the optimal block size
+     * (returned by Model::get_optimal_block_size) will change. The processor's audio delay
+     * remains constant regardless of sample rate as long as you use the optimal block size
+     * for that rate.
      *
      * **Recommendation:**
      *
@@ -372,39 +374,40 @@ class Model
     }
 
     /**
-     * Retrieves the optimal number of frames for the model at a given sample rate.
+     * Retrieves the optimal block size for the model at a given sample rate.
      *
-     * Using the optimal number of frames minimizes latency by avoiding internal buffering.
+     * Using the optimal block size minimizes latency by avoiding internal buffering.
      *
-     * **When you use a different frame count than the optimal value, the processor will
+     * **When you use a different block size than the optimal value, the processor will
      * introduce additional buffering latency on top of its base processing delay.**
      *
-     * The optimal frame count varies based on the sample rate. Each model operates on a
-     * fixed time window length, so the required number of frames changes with sample rate.
-     * For example, a model designed for 10 ms processing windows requires 480 frames at
-     * 48 kHz, but only 160 frames at 16 kHz to capture the same duration of audio.
+     * The optimal block size varies based on the sample rate. Each model operates on a
+     * fixed time window length, so the required number of samples changes with sample rate.
+     * For example, a model designed for 10 ms processing windows requires 480 samples at
+     * 48 kHz, but only 160 samples at 16 kHz to capture the same duration of audio.
      *
      * Call this function with your intended sample rate before calling Processor::initialize
-     * to determine the best frame count for minimal latency.
+     * or Vad::initialize to determine the best block size for minimal latency.
      *
-     * @param sample_rate Sample rate in Hz for which to calculate the optimal frame count.
-     * @return Optimal frame count.
+     * @param sample_rate Sample rate in Hz for which to calculate the optimal block size.
+     * @return Optimal block size.
      *
      * @note Thread-safe and real-time safe.
      */
-    size_t get_optimal_num_frames(uint32_t sample_rate) const
+    size_t get_optimal_block_size(uint32_t sample_rate) const
     {
-        size_t         num_frames = 0;
-        ::AicErrorCode rc = aic_model_get_optimal_num_frames(model_, sample_rate, &num_frames);
+        size_t         block_size = 0;
+        ::AicErrorCode rc = aic_model_get_optimal_block_size(model_, sample_rate, &block_size);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
-        return num_frames;
+        return block_size;
     }
 
   private:
-    // Friend declarations: allow Processor and AnalyzerPair to access the raw model handle for
+    // Friend declarations: allow Processor, Vad and AnalyzerPair to access the raw model handle for
     // creation.
     friend class Processor;
+    friend class Vad;
     friend struct AnalyzerPair;
 
     // Creates an empty Model wrapper for internal use when creation fails.
@@ -417,29 +420,31 @@ class Model
 // Configuration
 // ---------------------------
 
+/**
+ * Audio configuration for a Processor, Vad or Collector.
+ *
+ * All audio APIs are mono. To handle multi-channel audio, downmix to mono before processing,
+ * or create one Processor / Vad / Collector per channel.
+ */
 struct ProcessorConfig
 {
     uint32_t sample_rate;
-    uint16_t num_channels;
-    size_t   num_frames;
-    bool     allow_variable_frames;
+    size_t   block_size;
+    bool     variable_block_size;
 
     /**
      * Constructs a ProcessorConfig with the specified parameters.
      *
      * @param sample_rate Audio sample rate in Hz.
-     * @param num_frames Number of frames per processing block.
-     * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.).
-     * @param allow_variable_frames True to enable variable frame sizes, false for fixed size.
+     * @param block_size Number of samples per process call (the maximum, if variable_block_size
+     *                   is true).
+     * @param variable_block_size True to permit shorter calls at the cost of added delay,
+     *                            false for a fixed block size.
      */
-    ProcessorConfig(uint32_t sample_rate,
-                    size_t   num_frames,
-                    uint16_t num_channels          = 1,
-                    bool     allow_variable_frames = false)
+    ProcessorConfig(uint32_t sample_rate, size_t block_size, bool variable_block_size = false)
         : sample_rate(sample_rate)
-        , num_channels(num_channels)
-        , num_frames(num_frames)
-        , allow_variable_frames(allow_variable_frames)
+        , block_size(block_size)
+        , variable_block_size(variable_block_size)
     {}
 };
 
@@ -550,34 +555,31 @@ class ProcessorContext
     }
 
     /**
-     * Returns the total output delay in samples for the current audio configuration.
+     * Returns the delay applied to the audio in samples for the current audio configuration.
      *
      * This function provides the complete end-to-end latency introduced by the processor,
      * which includes both algorithmic processing delay and any buffering overhead.
+     * The processed audio leaves Processor::process this many samples behind its input.
      * Use this value to synchronize enhanced audio with other streams or to implement
      * delay compensation in your application.
      *
-     * For an enhancement model this is the latency of the enhanced audio. For a dedicated VAD
-     * model the audio passes through unchanged and this is the VAD prediction latency: how many
-     * samples a speech decision lags behind the input it describes.
-     *
-     * @return Output delay in samples.
+     * @return Audio delay in samples.
      *
      * @note Before initialization, returns the base processing delay using the
-     *       processor's optimal frame size at its native sample rate. After initialization,
-     *       returns the delay for the configured sample rate and frame count.
+     *       processor's optimal block size at its native sample rate. After initialization,
+     *       returns the delay for the configured sample rate and block size.
      * @note The delay value is expressed in samples at the configured sample rate.
      *       To convert to milliseconds: delay_ms = (delay_samples * 1000) / sample_rate.
-     * @note Using frame sizes different from the model's optimal value increases delay.
+     * @note Using a block size different from the model's optimal value increases delay.
      * @note Thread-safe and real-time safe.
      */
-    size_t get_output_delay() const
+    size_t get_audio_delay() const
     {
-        size_t         latency = 0;
-        ::AicErrorCode rc      = aic_processor_context_get_output_delay(context_, &latency);
+        size_t         delay = 0;
+        ::AicErrorCode rc    = aic_processor_context_get_audio_delay(context_, &delay);
         assert(rc == AIC_ERROR_CODE_SUCCESS);
         (void) rc;
-        return latency;
+        return delay;
     }
 
     /**
@@ -613,158 +615,6 @@ class ProcessorContext
     // Constructor: wraps an existing SDK processor context handle; this instance becomes
     // responsible for destroying it
     explicit ProcessorContext(::AicProcessorContext* context) : context_(context) {}
-};
-
-// ---------------------------
-// VAD context wrapper
-// ---------------------------
-
-class VadContext
-{
-  private:
-    ::AicVadContext* context_;
-
-  public:
-    // Destructor: releases the underlying SDK VAD context handle if one is owned
-    ~VadContext()
-    {
-        if (context_)
-        {
-            aic_vad_context_destroy(context_);
-        }
-    }
-
-    // Move constructor: the handle from the source VadContext gets moved into the new VadContext
-    VadContext(VadContext&& other) noexcept : context_(other.context_)
-    {
-        other.context_ = nullptr;
-    }
-
-    // Move assignment: replaces the currently owned handle with the source handle and clears the
-    // source
-    VadContext& operator=(VadContext&& other) noexcept
-    {
-        if (this != &other)
-        {
-            if (context_)
-            {
-                aic_vad_context_destroy(context_);
-            }
-            context_       = other.context_;
-            other.context_ = nullptr;
-        }
-        return *this;
-    }
-
-    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
-    // the handle
-    VadContext(const VadContext&) = delete;
-
-    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
-    VadContext& operator=(const VadContext&) = delete;
-
-    /**
-     * Returns the VAD's prediction.
-     *
-     * **Important:**
-     * - The latency of the VAD prediction is equal to the backing processor's processing
-     *   latency, reported by ProcessorContext::get_output_delay. The prediction lags its input
-     *   by that many samples even for a dedicated VAD model whose audio passes through untouched.
-     * - If the backing processor stops being processed,
-     *   the VAD will not update its speech detection prediction.
-     *
-     * @return True if speech is detected, false otherwise.
-     *
-     * @note Thread-safe and real-time safe.
-     */
-    bool is_speech_detected() const
-    {
-        bool           value = false;
-        ::AicErrorCode rc    = aic_vad_context_is_speech_detected(context_, &value);
-        assert(rc == AIC_ERROR_CODE_SUCCESS);
-        (void) rc;
-        return value;
-    }
-
-    /**
-     * Returns the raw prediction of the VAD, without any processing.
-     *
-     * In contrast to is_speech_detected(), this returns the model's direct prediction without
-     * going through the SDK's VAD post-processing, such as speech hold duration and sensitivity
-     * thresholding.
-     *
-     * This value may be used to build other abstractions on top of this data.
-     *
-     * **Important:**
-     * - This value is only useful when using a VAD model. When using an energy-based VAD,
-     *   the raw prediction is set to 1.0 or 0.0 depending on whether is_speech_detected()
-     *   is true or false.
-     * - The latency of the VAD prediction is equal to the backing processor's processing
-     *   latency, reported by ProcessorContext::get_output_delay. The prediction lags its input
-     *   by that many samples even for a dedicated VAD model whose audio passes through untouched.
-     * - If the backing processor stops being processed, the VAD will not update its prediction.
-     *
-     * @return Raw VAD probability.
-     *
-     * @note Thread-safe and real-time safe.
-     */
-    float get_raw_vad_probability() const
-    {
-        float          value = 0.0f;
-        ::AicErrorCode rc    = aic_vad_context_get_raw_vad_probability(context_, &value);
-        assert(rc == AIC_ERROR_CODE_SUCCESS);
-        (void) rc;
-        return value;
-    }
-
-    /**
-     * Modifies a VAD parameter.
-     *
-     * All parameters can be changed during audio processing.
-     * This function can be called from any thread.
-     *
-     * @param parameter Parameter to modify.
-     * @param value New parameter value.
-     * @return ErrorCode::Success on success, or an error code on failure.
-     *
-     * @note Thread-safe and real-time safe.
-     */
-    ErrorCode set_parameter(VadParameter parameter, float value) const
-    {
-        ::AicErrorCode rc = aic_vad_context_set_parameter(
-            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), value);
-        return static_cast<ErrorCode>(static_cast<int>(rc));
-    }
-
-    /**
-     * Retrieves the current value of a parameter.
-     *
-     * This function can be called from any thread.
-     *
-     * @param parameter Parameter to query.
-     * @return Current parameter value.
-     *
-     * @note Thread-safe and real-time safe.
-     */
-    float get_parameter(VadParameter parameter) const
-    {
-        float          value = 0.0f;
-        ::AicErrorCode rc    = aic_vad_context_get_parameter(
-            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), &value);
-        assert(rc == AIC_ERROR_CODE_SUCCESS);
-        (void) rc;
-        return value;
-    }
-
-  private:
-    // Friend declaration: allows Processor to construct VadContext instances from raw handles
-    friend class Processor;
-
-    // Constructor: creates an empty VAD context wrapper for internal use when creation fails
-    VadContext() : context_(nullptr) {}
-    // Constructor: wraps an existing SDK VAD context handle; this instance becomes responsible for
-    // destroying it
-    explicit VadContext(::AicVadContext* context) : context_(context) {}
 };
 
 // ---------------------------
@@ -816,16 +666,17 @@ class Processor
     Processor& operator=(const Processor&) = delete;
 
     /**
-     * Creates a new audio processor instance.
+     * Creates a new audio processor instance from an enhancement or bypass model.
      *
      * Multiple processors can be created to process different audio streams simultaneously
      * or to switch between different enhancement algorithms during runtime.
      *
-     * @param model Model instance to process.
+     * @param model Enhancement or bypass model instance to process.
      * @param license_key SDK license key. Accepts both regular license keys and JWT tokens.
      * @param otel_config Optional OpenTelemetry configuration. Pass nullptr to use the
      *                    `AIC_SDK_OTEL_ENABLE` environment variable instead.
-     * @return Result containing the Processor and an ErrorCode.
+     * @return Result containing the Processor and an ErrorCode. Returns
+     *         ErrorCode::ModelTypeUnsupported if the model is not an enhancement or bypass model.
      *
      * @warning Not thread-safe. Ensure no other threads are using the processor handle.
      */
@@ -837,126 +688,62 @@ class Processor
      * Configures the processor for a specific audio format.
      *
      * This function must be called before processing any audio.
-     * For the lowest delay use the sample rate and frame size returned by
-     * Model::get_optimal_sample_rate and Model::get_optimal_num_frames.
+     * For the lowest delay use the sample rate and block size returned by
+     * Model::get_optimal_sample_rate and Model::get_optimal_block_size.
      *
      * @param sample_rate Audio sample rate in Hz (8000 - 192000).
-     * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.).
-     * @param num_frames Number of samples per channel in each process call.
-     * @param allow_variable_frames Allows varying frame counts per process call (up to num_frames).
+     * @param block_size Number of samples per process call (the maximum, if variable_block_size
+     *                   is true).
+     * @param variable_block_size If true, permits shorter calls at the cost of added delay;
+     *                            calls larger than block_size are always rejected.
      * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
      *
-     * @note All channels are mixed to mono for processing. To process channels
-     *       independently, create separate processor instances.
+     * @note The processor is mono only. Downmix multi-channel audio before processing, or create
+     *       one processor per channel.
      * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
      */
-    ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
-                         bool allow_variable_frames)
+    ErrorCode initialize(uint32_t sample_rate, size_t block_size, bool variable_block_size)
     {
-        ::AicErrorCode rc = aic_processor_initialize(processor_, sample_rate, num_channels,
-                                                     num_frames, allow_variable_frames);
+        ::AicErrorCode rc =
+            aic_processor_initialize(processor_, sample_rate, block_size, variable_block_size);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
-     * Processes audio with separate buffers for each channel (planar layout).
+     * Enhances speech in the provided mono audio block in-place.
      *
-     * Enhances speech in the provided audio buffers in-place.
-     *
-     * **Memory Layout:**
-     * - `audio` is an array of pointers, one pointer per channel
-     * - Each pointer points to a separate buffer containing `num_frames` samples for that channel
-     * - Example for 2 channels, 4 frames:
-     *   ```
-     *   audio[0] -> [ch0_f0, ch0_f1, ch0_f2, ch0_f3]
-     *   audio[1] -> [ch1_f0, ch1_f1, ch1_f2, ch1_f3]
-     *   ```
-     *
-     * The planar function allows a maximum of 16 channels.
-     *
-     *  * # Note
-     * All channels are mixed to mono for processing. To process channels
-     * independently, create separate processor instances.
-     *
-     * @param audio Array of channel buffer pointers, one per channel.
-     * @param num_channels Number of channels (must match initialization).
-     * @param num_frames Number of samples per channel.
+     * @param audio Pointer to a mono audio block of audio_len samples.
+     * @param audio_len Number of samples in the block. Must match the block size from
+     *                  initialization, or be less than or equal to it if variable_block_size
+     *                  was enabled.
      * @return ErrorCode::Success on success, or an error code on failure.
      *
-     * @note If allow_variable_frames is enabled, num_frames may be less than or equal
-     *       to the initialization value.
      * @warning Real-time safe but not thread-safe; do not call from multiple threads.
      */
-    ErrorCode process_planar(float* const* audio, uint16_t num_channels, size_t num_frames)
+    ErrorCode process(float* audio, size_t audio_len)
     {
-        ::AicErrorCode rc =
-            aic_processor_process_planar(processor_, audio, num_channels, num_frames);
+        ::AicErrorCode rc = aic_processor_process(processor_, audio, audio_len);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
-     * Processes audio with interleaved channels in a single buffer.
+     * Terminates the telemetry session associated with this processor.
      *
-     * Enhances speech in the provided audio buffer in-place.
+     * Once the request has been handled, the processor is no longer allowed to process audio.
      *
-     * **Memory Layout:**
-     * - Single contiguous buffer with channels interleaved
-     * - Buffer size: `num_channels` * `num_frames` floats
-     * - Example for 2 channels, 4 frames:
-     *   ```
-     *   audio -> [ch0_f0, ch1_f0, ch0_f1, ch1_f1, ch0_f2, ch1_f2, ch0_f3, ch1_f3]
-     *   ```
+     * A telemetry session is stopped automatically when the Processor is destroyed. Use this
+     * function in lifecycle management events where destruction may be delayed, for example when
+     * this SDK is wrapped by a language with automatic memory management.
      *
-     *  * # Note
-     * All channels are mixed to mono for processing. To process channels
-     * independently, create separate processor instances.
+     * @return ErrorCode::Success if termination was requested successfully, or an error code on
+     *         failure.
      *
-     * @param audio Interleaved audio buffer of size num_channels * num_frames.
-     * @param num_channels Number of channels (must match initialization).
-     * @param num_frames Number of samples per channel.
-     * @return ErrorCode::Success on success, or an error code on failure.
-     *
-     * @note If allow_variable_frames is enabled, num_frames may be less than or equal
-     *       to the initialization value.
-     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     * @warning Not real-time safe; may block until the session is terminated. Not thread-safe;
+     *          ensure no other threads are using the processor while this call is active.
      */
-    ErrorCode process_interleaved(float* audio, uint16_t num_channels, size_t num_frames)
+    ErrorCode terminate_session()
     {
-        ::AicErrorCode rc =
-            aic_processor_process_interleaved(processor_, audio, num_channels, num_frames);
-        return static_cast<ErrorCode>(static_cast<int>(rc));
-    }
-
-    /**
-     * Processes audio with sequential channel data in a single buffer.
-     *
-     * Enhances speech in the provided audio buffer in-place.
-     *
-     * **Memory Layout:**
-     * - Single contiguous buffer with all samples for each channel stored sequentially
-     * - Buffer size: `num_channels` * `num_frames` floats
-     * - Example for 2 channels, 4 frames:
-     *   ```
-     *   audio -> [ch0_f0, ch0_f1, ch0_f2, ch0_f3, ch1_f0, ch1_f1, ch1_f2, ch1_f3]
-     *   ```
-     *
-     *  * # Note
-     * All channels are mixed to mono for processing. To process channels
-     * independently, create separate processor instances.
-     *
-     * @param audio Sequential audio buffer of size num_channels * num_frames.
-     * @param num_channels Number of channels (must match initialization).
-     * @param num_frames Number of samples per channel.
-     * @return ErrorCode::Success on success, or an error code on failure.
-     *
-     * @note If allow_variable_frames is enabled, num_frames may be less than or equal
-     *       to the initialization value.
-     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
-     */
-    ErrorCode process_sequential(float* audio, uint16_t num_channels, size_t num_frames)
-    {
-        ::AicErrorCode rc =
-            aic_processor_process_sequential(processor_, audio, num_channels, num_frames);
+        ::AicErrorCode rc = aic_processor_terminate_session(processor_);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
@@ -964,29 +751,13 @@ class Processor
      * Creates a processor context handle for thread-safe control APIs.
      *
      * The returned context can be used to reset the processor, adjust parameters,
-     * and query output delay from any thread.
+     * and query the audio delay from any thread.
      *
      * @return Result containing the ProcessorContext and an ErrorCode.
      *
      * @note Thread-safe.
      */
     Result<ProcessorContext> create_context() const;
-
-    /**
-     * Creates a VAD context handle for thread-safe control APIs.
-     *
-     * The voice activity detection works automatically using the enhanced audio output
-     * of a given processor.
-     *
-     * **Important:** If the backing processor is destroyed, the VAD instance will stop
-     * producing new data. It is safe to destroy the processor without destroying the VAD.
-     *
-     * @return Result containing the VadContext and an ErrorCode.
-     *
-     * @note Thread-safe and real-time safe.
-     * @note It is safe for the processor to be in use by other threads.
-     */
-    Result<VadContext> create_vad_context() const;
 
   private:
     // Constructor: creates an empty Processor wrapper for internal use when creation fails
@@ -997,6 +768,394 @@ class Processor
 };
 
 // ---------------------------
+// VAD context wrapper
+// ---------------------------
+
+class VadContext
+{
+  private:
+    ::AicVadContext* context_;
+
+  public:
+    // Destructor: releases the underlying SDK VAD context handle if one is owned
+    ~VadContext()
+    {
+        if (context_)
+        {
+            aic_vad_context_destroy(context_);
+        }
+    }
+
+    // Move constructor: the handle from the source VadContext gets moved into the new VadContext
+    VadContext(VadContext&& other) noexcept : context_(other.context_)
+    {
+        other.context_ = nullptr;
+    }
+
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
+    VadContext& operator=(VadContext&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (context_)
+            {
+                aic_vad_context_destroy(context_);
+            }
+            context_       = other.context_;
+            other.context_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    VadContext(const VadContext&) = delete;
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
+    VadContext& operator=(const VadContext&) = delete;
+
+    /**
+     * Clears all internal state and buffers. This also resets the VAD state.
+     *
+     * Call this when the audio stream is interrupted or when seeking to prevent mispredictions
+     * from previous audio content. The published speech decision and raw probability are cleared
+     * immediately, so queries cannot return stale values from the previous stream.
+     *
+     * The VAD stays initialized to the configured settings.
+     *
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    ErrorCode reset() const
+    {
+        ::AicErrorCode rc = aic_vad_context_reset(context_);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Returns the VAD's prediction.
+     *
+     * **Important:**
+     * - The latency of the VAD prediction is equal to the backing Vad's processing latency,
+     *   reported by VadContext::get_prediction_delay. The prediction lags its input by that many
+     *   samples; the audio itself is not delayed, Vad::process leaves the buffer untouched.
+     * - If the backing Vad stops being processed, the VAD will not update its speech detection
+     *   prediction.
+     *
+     * @return True if speech is detected, false otherwise.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    bool is_speech_detected() const
+    {
+        bool           value = false;
+        ::AicErrorCode rc    = aic_vad_context_is_speech_detected(context_, &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+    /**
+     * Returns the raw prediction of the VAD, without any processing.
+     *
+     * In contrast to is_speech_detected(), this returns the model's direct prediction without
+     * going through the SDK's VAD post-processing, such as speech hold duration and sensitivity
+     * thresholding.
+     *
+     * This value may be used to build other abstractions on top of this data.
+     *
+     * **Important:**
+     * - The latency of the VAD prediction is equal to the backing Vad's processing latency,
+     *   reported by VadContext::get_prediction_delay. The prediction lags its input by that many
+     *   samples; the audio itself is not delayed, Vad::process leaves the buffer untouched.
+     * - If the backing Vad stops being processed, the VAD will not update its prediction.
+     *
+     * @return Raw VAD probability.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    float get_raw_vad_probability() const
+    {
+        float          value = 0.0f;
+        ::AicErrorCode rc    = aic_vad_context_get_raw_vad_probability(context_, &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+    /**
+     * Returns the total VAD prediction delay in samples for the current audio configuration.
+     *
+     * This includes input reblocking, STFT and model processing delay. Use this value to line up
+     * VAD decisions with the input timeline.
+     *
+     * This delay is **not** applied to the audio: Vad::process leaves its input buffer untouched.
+     * The value only describes how far behind its input the published prediction is. When
+     * enhancement and VAD run side by side on the same input block, this delay is independent of
+     * ProcessorContext::get_audio_delay.
+     *
+     * @return Prediction delay in samples.
+     *
+     * @note Before initialization, returns the base processing delay using the VAD's optimal
+     *       block size at its native sample rate. After initialization, returns the end-to-end
+     *       prediction delay at the initialized sample rate, including input buffering latency
+     *       for the configured block size.
+     * @note The delay value is expressed in samples at the configured sample rate.
+     *       To convert to milliseconds: delay_ms = (delay_samples * 1000) / sample_rate.
+     * @note Using a block size different from the model's optimal value, or enabling variable
+     *       block sizes, can add input-buffering latency before a new prediction is published.
+     * @note Thread-safe and real-time safe.
+     */
+    size_t get_prediction_delay() const
+    {
+        size_t         delay = 0;
+        ::AicErrorCode rc    = aic_vad_context_get_prediction_delay(context_, &delay);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return delay;
+    }
+
+    /**
+     * Modifies a VAD parameter.
+     *
+     * All parameters can be changed during audio processing.
+     * This function can be called from any thread.
+     *
+     * @param parameter Parameter to modify.
+     * @param value New parameter value.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    ErrorCode set_parameter(VadParameter parameter, float value) const
+    {
+        ::AicErrorCode rc = aic_vad_context_set_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), value);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Retrieves the current value of a parameter.
+     *
+     * This function can be called from any thread.
+     *
+     * @param parameter Parameter to query.
+     * @return Current parameter value.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    float get_parameter(VadParameter parameter) const
+    {
+        float          value = 0.0f;
+        ::AicErrorCode rc    = aic_vad_context_get_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+    /**
+     * Replaces the bearer token on a running VAD.
+     *
+     * Use this when your license key is a JWT and needs to be refreshed before it expires.
+     * Audio processing continues uninterrupted; the context handle stays valid and the new
+     * token is used for all subsequent authentication.
+     *
+     * In-place updates are only supported when both the original key and the new token are
+     * JWTs. If either side is not a JWT, returns ErrorCode::TokenUpdateUnsupported and the
+     * existing token stays in use.
+     *
+     * @param token New JWT token string.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @note Thread-safe. Safe to call concurrently with Vad::process.
+     * @warning Not real-time safe; locks a mutex and allocates memory.
+     */
+    ErrorCode update_bearer_token(const std::string& token) const
+    {
+        ::AicErrorCode rc = aic_vad_context_update_bearer_token(context_, token.c_str());
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+  private:
+    // Friend declaration: allows Vad to construct VadContext instances from raw handles
+    friend class Vad;
+
+    // Constructor: creates an empty VAD context wrapper for internal use when creation fails
+    VadContext() : context_(nullptr) {}
+    // Constructor: wraps an existing SDK VAD context handle; this instance becomes responsible for
+    // destroying it
+    explicit VadContext(::AicVadContext* context) : context_(context) {}
+};
+
+// ---------------------------
+// VAD wrapper
+// ---------------------------
+
+/**
+ * Voice activity detector running a dedicated VAD model.
+ *
+ * The Vad is a standalone object with its own lifecycle: create it from a VAD model, initialize
+ * it for your audio format, and feed it every mono audio block with Vad::process. Read its
+ * predictions through a VadContext.
+ *
+ * When enhancement and VAD run together, feed the Vad the original input audio rather than the
+ * output of Processor::process. Vad::process does not modify its input, so calling it on the same
+ * buffer before Processor::process keeps the VAD on the unprocessed signal.
+ */
+class Vad
+{
+  private:
+    ::AicVad* vad_;
+
+  public:
+    // Destructor: releases the underlying SDK VAD handle if one is owned
+    ~Vad()
+    {
+        if (vad_)
+        {
+            aic_vad_destroy(vad_);
+        }
+    }
+
+    // Move constructor: the handle from the source Vad gets moved into the new Vad
+    Vad(Vad&& other) noexcept : vad_(other.vad_)
+    {
+        other.vad_ = nullptr;
+    }
+
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
+    Vad& operator=(Vad&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (vad_)
+            {
+                aic_vad_destroy(vad_);
+            }
+            vad_       = other.vad_;
+            other.vad_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    Vad(const Vad&) = delete;
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
+    Vad& operator=(const Vad&) = delete;
+
+    /**
+     * Creates a new voice activity detector instance from a dedicated VAD model.
+     *
+     * Multiple Vad instances can be created to process different audio streams simultaneously.
+     *
+     * @param model VAD model instance to process.
+     * @param license_key SDK license key. Accepts both regular license keys and JWT tokens.
+     * @param otel_config Optional OpenTelemetry configuration. Pass nullptr to use the
+     *                    `AIC_SDK_OTEL_ENABLE` environment variable instead.
+     * @return Result containing the Vad and an ErrorCode. Returns
+     *         ErrorCode::ModelTypeUnsupported if the model is not a VAD model.
+     *
+     * @warning Not thread-safe. Ensure no other threads are using the VAD handle.
+     */
+    static Result<Vad> create(const Model&       model,
+                              const std::string& license_key,
+                              const OtelConfig*  otel_config = nullptr);
+
+    /**
+     * Configures the VAD for a specific audio format.
+     *
+     * This function must be called before processing any audio.
+     * For the most frequent prediction updates use the sample rate and block size returned by
+     * Model::get_optimal_sample_rate and Model::get_optimal_block_size.
+     *
+     * @param sample_rate Audio sample rate in Hz (8000 - 192000).
+     * @param block_size Number of samples per process call (the maximum, if variable_block_size
+     *                   is true).
+     * @param variable_block_size If true, permits shorter calls at the cost of extra buffering
+     *                            before new predictions are published; calls larger than
+     *                            block_size are always rejected.
+     * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
+     *
+     * @note The VAD is mono only. Downmix multi-channel audio before processing, or create one
+     *       Vad per channel.
+     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
+     */
+    ErrorCode initialize(uint32_t sample_rate, size_t block_size, bool variable_block_size)
+    {
+        ::AicErrorCode rc = aic_vad_initialize(vad_, sample_rate, block_size, variable_block_size);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Processes the provided mono audio block and updates the VAD prediction.
+     *
+     * The input audio is read-only and is not modified.
+     *
+     * @param audio Pointer to a mono audio block of audio_len samples.
+     * @param audio_len Number of samples in the block. Must match the block size from
+     *                  initialization, or be less than or equal to it if variable_block_size
+     *                  was enabled.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     */
+    ErrorCode process(const float* audio, size_t audio_len)
+    {
+        ::AicErrorCode rc = aic_vad_process(vad_, audio, audio_len);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Terminates the telemetry session associated with this VAD.
+     *
+     * Once the request has been handled, the VAD is no longer allowed to process audio.
+     *
+     * A telemetry session is stopped automatically when the Vad is destroyed. Use this function
+     * in lifecycle management events where destruction may be delayed, for example when this SDK
+     * is wrapped by a language with automatic memory management.
+     *
+     * @return ErrorCode::Success if termination was requested successfully, or an error code on
+     *         failure.
+     *
+     * @warning Not real-time safe; may block until the session is terminated. Not thread-safe;
+     *          ensure no other threads are using the VAD while this call is active.
+     */
+    ErrorCode terminate_session()
+    {
+        ::AicErrorCode rc = aic_vad_terminate_session(vad_);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Creates a VAD context handle for thread-safe control APIs.
+     *
+     * The voice activity detection works automatically as Vad::process processes audio.
+     *
+     * **Important:** If the backing Vad is destroyed, the context will stop producing new data.
+     * It is safe to destroy the Vad without destroying the context.
+     *
+     * @return Result containing the VadContext and an ErrorCode.
+     *
+     * @note Thread-safe and real-time safe.
+     * @note It is safe for the VAD to be in use by other threads.
+     */
+    Result<VadContext> create_context() const;
+
+  private:
+    // Constructor: creates an empty Vad wrapper for internal use when creation fails
+    Vad() : vad_(nullptr) {}
+    // Constructor: wraps an existing SDK VAD handle; this instance becomes responsible for
+    // destroying it
+    explicit Vad(::AicVad* vad) : vad_(vad) {}
+};
+
+// ---------------------------
 // Collector wrapper
 // ---------------------------
 
@@ -1004,8 +1163,8 @@ class Processor
  * Buffers audio in the real-time thread for later, non-real-time analysis.
  *
  * A Collector is created together with an Analyzer via AnalyzerPair::create. Place the
- * Collector in your audio thread and feed it audio with the buffer_* methods, mirroring the
- * Processor process_* calls. The Analyzer then reads the buffered audio from another thread.
+ * Collector in your audio thread and feed it mono audio with Collector::buffer, mirroring the
+ * Processor::process call. The Analyzer then reads the buffered audio from another thread.
  *
  * The Collector retains a span of audio determined by the analysis model; as new samples are
  * buffered, the oldest audio is discarded.
@@ -1057,80 +1216,44 @@ class Collector
     /**
      * Configures the collector for a specific audio format.
      *
-     * Must be called before buffering any audio. Use the same configuration as the Processor
-     * for the corresponding model.
+     * Must be called before buffering any audio. Using the sample rate and block size returned by
+     * Model::get_optimal_sample_rate and Model::get_optimal_block_size avoids internal resampling
+     * and rebuffering.
      *
      * @param sample_rate Audio sample rate in Hz (8000 - 192000).
-     * @param num_channels Number of audio channels (1 for mono, 2 for stereo, etc.).
-     * @param num_frames Number of samples per channel in each buffer call.
-     * @param allow_variable_frames Allows varying frame counts per call (up to num_frames).
+     * @param block_size Number of samples per buffer call (the maximum, if variable_block_size
+     *                   is true).
+     * @param variable_block_size If true, permits shorter calls at the cost of added delay;
+     *                            calls larger than block_size are always rejected.
      * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
      *
-     * @note All channels are mixed to mono for buffering.
+     * @note The collector is mono only. Downmix multi-channel audio before buffering, or create
+     *       one collector / analyzer pair per channel.
      * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
      */
-    ErrorCode initialize(uint32_t sample_rate, uint16_t num_channels, size_t num_frames,
-                         bool allow_variable_frames)
-    {
-        ::AicErrorCode rc = aic_collector_initialize(collector_, sample_rate, num_channels,
-                                                     num_frames, allow_variable_frames);
-        return static_cast<ErrorCode>(static_cast<int>(rc));
-    }
-
-    /**
-     * Buffers audio with separate buffers for each channel (planar layout).
-     *
-     * The input audio is read-only and is not modified. Maximum of 16 channels.
-     *
-     * @param audio Array of channel buffer pointers, one per channel.
-     * @param num_channels Number of channels (must match initialization).
-     * @param num_frames Number of samples per channel.
-     * @return ErrorCode::Success on success, or an error code on failure.
-     *
-     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
-     */
-    ErrorCode buffer_planar(const float* const* audio, uint16_t num_channels, size_t num_frames)
+    ErrorCode initialize(uint32_t sample_rate, size_t block_size, bool variable_block_size)
     {
         ::AicErrorCode rc =
-            aic_collector_buffer_planar(collector_, audio, num_channels, num_frames);
+            aic_collector_initialize(collector_, sample_rate, block_size, variable_block_size);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
-     * Buffers audio with interleaved channels in a single buffer.
+     * Buffers a mono audio block for later offline use.
      *
      * The input audio is read-only and is not modified.
      *
-     * @param audio Interleaved audio buffer of size num_channels * num_frames.
-     * @param num_channels Number of channels (must match initialization).
-     * @param num_frames Number of samples per channel.
+     * @param audio Pointer to a mono audio block of audio_len samples.
+     * @param audio_len Number of samples in the block. Must match the block size from
+     *                  initialization, or be less than or equal to it if variable_block_size
+     *                  was enabled.
      * @return ErrorCode::Success on success, or an error code on failure.
      *
      * @warning Real-time safe but not thread-safe; do not call from multiple threads.
      */
-    ErrorCode buffer_interleaved(const float* audio, uint16_t num_channels, size_t num_frames)
+    ErrorCode buffer(const float* audio, size_t audio_len)
     {
-        ::AicErrorCode rc =
-            aic_collector_buffer_interleaved(collector_, audio, num_channels, num_frames);
-        return static_cast<ErrorCode>(static_cast<int>(rc));
-    }
-
-    /**
-     * Buffers audio with sequential channel data in a single buffer.
-     *
-     * The input audio is read-only and is not modified.
-     *
-     * @param audio Sequential audio buffer of size num_channels * num_frames.
-     * @param num_channels Number of channels (must match initialization).
-     * @param num_frames Number of samples per channel.
-     * @return ErrorCode::Success on success, or an error code on failure.
-     *
-     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
-     */
-    ErrorCode buffer_sequential(const float* audio, uint16_t num_channels, size_t num_frames)
-    {
-        ::AicErrorCode rc =
-            aic_collector_buffer_sequential(collector_, audio, num_channels, num_frames);
+        ::AicErrorCode rc = aic_collector_buffer(collector_, audio, audio_len);
         return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
@@ -1242,6 +1365,28 @@ class Analyzer
         }
 
         return Result<AnalysisResult>(AnalysisResult{}, static_cast<ErrorCode>(static_cast<int>(rc)));
+    }
+
+    /**
+     * Terminates the telemetry session associated with this analyzer.
+     *
+     * Once the request has been handled, the analyzer is no longer allowed to analyze buffered
+     * audio.
+     *
+     * A telemetry session is stopped automatically when the Analyzer is destroyed. Use this
+     * function in lifecycle management events where destruction may be delayed, for example when
+     * this SDK is wrapped by a language with automatic memory management.
+     *
+     * @return ErrorCode::Success if termination was requested successfully, or an error code on
+     *         failure.
+     *
+     * @warning Not real-time safe; may block until the session is terminated. Not thread-safe;
+     *          ensure no other threads are using the analyzer while this call is active.
+     */
+    ErrorCode terminate_session()
+    {
+        ::AicErrorCode rc = aic_analyzer_terminate_session(analyzer_);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
     }
 
     /**
