@@ -32,15 +32,20 @@ else()
     FetchContent_MakeAvailable(aic_sdk)
 endif()
 
-add_executable(my_app main.cpp)
+# One executable per example. Enhancement and VAD are separate objects with separate models,
+# so each gets its own self-contained example.
+add_executable(aic-sdk-enhancement enhancement.cpp)
+add_executable(aic-sdk-vad vad.cpp)
 
-# Link against the SDK
-target_link_libraries(my_app PRIVATE aic-sdk)
+foreach(example aic-sdk-enhancement aic-sdk-vad)
+    # Link against the SDK
+    target_link_libraries(${example} PRIVATE aic-sdk)
 
-if(APPLE)
-    target_link_libraries(my_app PRIVATE "-framework Security" "-framework CoreFoundation")
-endif()
+    if(APPLE)
+        target_link_libraries(${example} PRIVATE "-framework Security" "-framework CoreFoundation")
+    endif()
 
-if(WIN32)
-    target_link_libraries(my_app PRIVATE crypt32)
-endif()
+    if(WIN32)
+        target_link_libraries(${example} PRIVATE crypt32)
+    endif()
+endforeach()

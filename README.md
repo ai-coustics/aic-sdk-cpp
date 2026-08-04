@@ -514,9 +514,9 @@ enable telemetry globally.
 
 ## Examples
 
-See the [`example/main.cpp`](example/main.cpp) file for a complete working example demonstrating
-model loading, processor configuration, mono processing, parameter adjustment, and the standalone
-VAD.
+See the [`example/enhancement.cpp`](example/enhancement.cpp) and [`example/vad.cpp`](example/vad.cpp)
+files for complete working examples. Enhancement and VAD are separate objects with separate models,
+so each has its own self-contained example.
 
 Set your license key in an environment variable:
 
@@ -524,22 +524,27 @@ Set your license key in an environment variable:
 export AIC_SDK_LICENSE="your_license_key_here"
 ```
 
-Build and run the example with an enhancement model:
+Build both examples:
 
 ```sh
 cmake -B build ./example
 cmake --build build -j
-./build/my_app path/to/model.aicmodel
 ```
 
-Pass a dedicated VAD model as a second argument to also run the VAD part of the example:
+Run the enhancement example with an enhancement or bypass model:
 
 ```sh
-./build/my_app path/to/model.aicmodel path/to/vad-model.aicmodel
+./build/aic-sdk-enhancement path/to/model.aicmodel
 ```
 
-**Note:** The VAD part is skipped when no second model path is given, because voice activity
-detection requires a dedicated VAD model and cannot run on an enhancement model.
+Run the VAD example with a dedicated VAD model:
+
+```sh
+./build/aic-sdk-vad path/to/vad-model.aicmodel
+```
+
+**Note:** Each example rejects the other's model type with `ErrorCode::ModelTypeUnsupported`.
+Voice activity detection requires a dedicated VAD model and cannot run on an enhancement model.
 
 ## Compatibility
 

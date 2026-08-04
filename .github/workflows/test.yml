@@ -69,10 +69,18 @@ jobs:
               env_file.write(f"AIC_ENHANCEMENT_MODEL={paths['AIC_ENHANCEMENT_MODEL_ID']}\n")
               env_file.write(f"AIC_VAD_MODEL={paths['AIC_VAD_MODEL_ID']}\n")
 
-      - name: Run Example (Linux/macOS)
+      - name: Run Enhancement Example (Linux/macOS)
         if: runner.os != 'Windows'
-        run: ./build/my_app "$AIC_ENHANCEMENT_MODEL" "$AIC_VAD_MODEL"
+        run: ./build/aic-sdk-enhancement "$AIC_ENHANCEMENT_MODEL"
 
-      - name: Run Example (Windows)
+      - name: Run VAD Example (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./build/aic-sdk-vad "$AIC_VAD_MODEL"
+
+      - name: Run Enhancement Example (Windows)
         if: runner.os == 'Windows'
-        run: .\build\Debug\my_app.exe $env:AIC_ENHANCEMENT_MODEL $env:AIC_VAD_MODEL
+        run: .\build\Debug\aic-sdk-enhancement.exe $env:AIC_ENHANCEMENT_MODEL
+
+      - name: Run VAD Example (Windows)
+        if: runner.os == 'Windows'
+        run: .\build\Debug\aic-sdk-vad.exe $env:AIC_VAD_MODEL
