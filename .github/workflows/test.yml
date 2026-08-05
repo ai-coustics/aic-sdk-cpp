@@ -1,4 +1,4 @@
-name: Build and Run Example
+name: Build, Run Examples and Test
 
 on:
   push:
@@ -18,19 +18,13 @@ jobs:
       AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
       # Model version required by this SDK release (aic_get_compatible_model_version).
       AIC_MODEL_VERSION: v6
-      # Enhancement model driving the Processor part of the example.
+      # Enhancement model driving the Processor example.
       AIC_ENHANCEMENT_MODEL_ID: quail-vf-2.2-s-16khz
-      # Dedicated VAD model driving the standalone Vad part of the example.
+      # Dedicated VAD model driving the standalone Vad example.
       AIC_VAD_MODEL_ID: vad-2.1-xxs-16khz
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure CMake
-        run: cmake -B build ./example
-
-      - name: Build
-        run: cmake --build build -j
 
       # Model filenames carry a content hash, so they are resolved through the public
       # manifest by model ID instead of being hardcoded here.
@@ -41,7 +35,7 @@ jobs:
 
           BASE = "https://artifacts.ai-coustics.io/"
           version = os.environ["AIC_MODEL_VERSION"]
-          out_dir = pathlib.Path("build/models")
+          out_dir = pathlib.Path("models").resolve()
           out_dir.mkdir(parents=True, exist_ok=True)
 
           with urllib.request.urlopen(BASE + "manifest.json") as response:
@@ -65,9 +59,16 @@ jobs:
               urllib.request.urlretrieve(BASE + entry["file"], target)
               paths[env_var] = target
 
+          # Absolute paths, so they stay valid from any build directory.
           with open(os.environ["GITHUB_ENV"], "a") as env_file:
               env_file.write(f"AIC_ENHANCEMENT_MODEL={paths['AIC_ENHANCEMENT_MODEL_ID']}\n")
               env_file.write(f"AIC_VAD_MODEL={paths['AIC_VAD_MODEL_ID']}\n")
+
+      - name: Configure Examples
+        run: cmake -B build ./example
+
+      - name: Build Examples
+        run: cmake --build build -j
 
       - name: Run Enhancement Example (Linux/macOS)
         if: runner.os != 'Windows'
@@ -84,3 +85,14 @@ jobs:
       - name: Run VAD Example (Windows)
         if: runner.os == 'Windows'
         run: .\build\Debug\aic-sdk-vad.exe $env:AIC_VAD_MODEL
+
+      # The test project resolves and downloads its own model at configure time.
+      - name: Configure Tests
+        run: cmake -B build-test ./test
+
+      - name: Build Tests
+        run: cmake --build build-test -j
+
+      # -C Debug is required by multi-config generators and ignored by single-config ones.
+      - name: Run Tests
+        run: ctest --test-dir build-test -C Debug --output-on-failure
