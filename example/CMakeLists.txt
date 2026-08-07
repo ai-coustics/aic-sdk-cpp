@@ -32,12 +32,13 @@ else()
     FetchContent_MakeAvailable(aic_sdk)
 endif()
 
-# One executable per example. Enhancement and VAD are separate objects with separate models,
-# so each gets its own self-contained example.
+# One executable per example. Enhancement, VAD and analysis are separate objects with separate
+# models, so each gets its own self-contained example.
 add_executable(aic-sdk-enhancement enhancement.cpp)
 add_executable(aic-sdk-vad vad.cpp)
+add_executable(aic-sdk-analyzer analyzer.cpp)
 
-foreach(example aic-sdk-enhancement aic-sdk-vad)
+foreach(example aic-sdk-enhancement aic-sdk-vad aic-sdk-analyzer)
     # Link against the SDK
     target_link_libraries(${example} PRIVATE aic-sdk)
 

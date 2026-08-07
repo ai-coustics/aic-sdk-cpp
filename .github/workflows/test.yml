@@ -22,6 +22,8 @@ jobs:
       AIC_ENHANCEMENT_MODEL_ID: quail-vf-2.2-s-16khz
       # Dedicated VAD model driving the standalone Vad example.
       AIC_VAD_MODEL_ID: vad-2.1-xxs-16khz
+      # Dedicated analysis model driving the Collector / Analyzer example.
+      AIC_ANALYSIS_MODEL_ID: tyto-l-16khz
 
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +44,11 @@ jobs:
               manifest = json.load(response)
 
           paths = {}
-          for env_var in ("AIC_ENHANCEMENT_MODEL_ID", "AIC_VAD_MODEL_ID"):
+          for env_var in (
+              "AIC_ENHANCEMENT_MODEL_ID",
+              "AIC_VAD_MODEL_ID",
+              "AIC_ANALYSIS_MODEL_ID",
+          ):
               model_id = os.environ[env_var]
               model = manifest["models"].get(model_id)
               if model is None:
@@ -63,6 +69,7 @@ jobs:
           with open(os.environ["GITHUB_ENV"], "a") as env_file:
               env_file.write(f"AIC_ENHANCEMENT_MODEL={paths['AIC_ENHANCEMENT_MODEL_ID']}\n")
               env_file.write(f"AIC_VAD_MODEL={paths['AIC_VAD_MODEL_ID']}\n")
+              env_file.write(f"AIC_ANALYSIS_MODEL={paths['AIC_ANALYSIS_MODEL_ID']}\n")
 
       - name: Configure Examples
         run: cmake -B build ./example
@@ -78,6 +85,10 @@ jobs:
         if: runner.os != 'Windows'
         run: ./build/aic-sdk-vad "$AIC_VAD_MODEL"
 
+      - name: Run Analyzer Example (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./build/aic-sdk-analyzer "$AIC_ANALYSIS_MODEL"
+
       - name: Run Enhancement Example (Windows)
         if: runner.os == 'Windows'
         run: .\build\Debug\aic-sdk-enhancement.exe $env:AIC_ENHANCEMENT_MODEL
@@ -85,6 +96,10 @@ jobs:
       - name: Run VAD Example (Windows)
         if: runner.os == 'Windows'
         run: .\build\Debug\aic-sdk-vad.exe $env:AIC_VAD_MODEL
+
+      - name: Run Analyzer Example (Windows)
+        if: runner.os == 'Windows'
+        run: .\build\Debug\aic-sdk-analyzer.exe $env:AIC_ANALYSIS_MODEL
 
       # The test project resolves and downloads its own model at configure time.
       - name: Configure Tests
