@@ -95,11 +95,19 @@ endif()
 # -------- Decide library filenames --------
 if(WIN32)
     if(AIC_SDK_USE_STATIC)
-        set(AIC_LIB_FILE "${AIC_C_LIBDIR}/aic.lib")
+        # The SDK ships separate static libs for the static (/MT) and dynamic (/MD) MSVC
+        # CRT. CMake defaults to the dynamic CRT unless CMAKE_MSVC_RUNTIME_LIBRARY says
+        # otherwise, so match that here.
+        if(CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "^MultiThreaded(Debug)?$")
+            set(AIC_CRT_DIR "static-crt")
+        else()
+            set(AIC_CRT_DIR "dynamic-crt")
+        endif()
+        set(AIC_LIB_FILE "${AIC_C_LIBDIR}/${AIC_CRT_DIR}/aic.lib")
         set(AIC_LIB_KIND STATIC)
     else()
         set(AIC_LIB_FILE "${AIC_C_LIBDIR}/aic.dll")
-        set(AIC_IMPLIB   "${AIC_C_LIBDIR}/aic.lib")
+        set(AIC_IMPLIB   "${AIC_C_LIBDIR}/aic.dll.lib")
         set(AIC_LIB_KIND SHARED)
     endif()
 elseif(APPLE)
