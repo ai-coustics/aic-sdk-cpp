@@ -97,8 +97,10 @@ if(WIN32)
     if(AIC_SDK_USE_STATIC)
         # The SDK ships separate static libs for the static (/MT) and dynamic (/MD) MSVC
         # CRT. CMake defaults to the dynamic CRT unless CMAKE_MSVC_RUNTIME_LIBRARY says
-        # otherwise, so match that here.
-        if(CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "^MultiThreaded(Debug)?$")
+        # otherwise, so match that here. Any spelling containing "DLL" selects the
+        # dynamic CRT, which also covers the generator-expression forms such as
+        # "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL".
+        if(CMAKE_MSVC_RUNTIME_LIBRARY AND NOT CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "DLL")
             set(AIC_CRT_DIR "static-crt")
         else()
             set(AIC_CRT_DIR "dynamic-crt")
