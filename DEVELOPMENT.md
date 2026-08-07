@@ -7,6 +7,7 @@
 5. Update git tag in `README.md` CMake integration example
 6. Update `AIC_TEST_MODEL_VERSION` in `test/CMakeLists.txt` and `AIC_MODEL_VERSION` in
    `.github/workflows/test.yml` when the compatible model version changes
+7. Update `release/ReleaseNotes.md` with the changes in this release
 
 # Tests
 
