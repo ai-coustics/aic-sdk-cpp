@@ -69,9 +69,6 @@ template <typename T> struct Result
     /// Error status for the operation.
     ErrorCode error;
 
-    // Default constructor: default-constructs the value and sets a non-success error as a safe
-    // sentinel
-    Result() : value(), error(ErrorCode::InternalError) {}
     // Constructor: copies the value and stores the error code
     Result(const T& v, ErrorCode e) : value(v), error(e) {}
     // Constructor: moves the value and stores the error code
