@@ -63,7 +63,9 @@ bool compare_samples(const std::vector<float>& actual, const std::vector<float>&
             max_diff_index = i;
         }
 
-        if (diff > epsilon)
+        // Negated so that a NaN diff counts as a mismatch: `diff > epsilon` would be false for it
+        // and a NaN in the output would pass as a match.
+        if (!(diff <= epsilon))
         {
             if (mismatches == 0)
             {
