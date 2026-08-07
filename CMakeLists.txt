@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(aic-sdk-cpp VERSION 0.21.0 LANGUAGES C CXX)
+project(aic-sdk-cpp VERSION 0.22.0 LANGUAGES C CXX)
 
 option(AIC_SDK_ALLOW_DOWNLOAD "Allow C SDK download at configure time" OFF)
 option(AIC_SDK_USE_STATIC "Link against static aic C SDK" ON)
@@ -95,11 +95,21 @@ endif()
 # -------- Decide library filenames --------
 if(WIN32)
     if(AIC_SDK_USE_STATIC)
-        set(AIC_LIB_FILE "${AIC_C_LIBDIR}/aic.lib")
+        # The SDK ships separate static libs for the static (/MT) and dynamic (/MD) MSVC
+        # CRT. CMake defaults to the dynamic CRT unless CMAKE_MSVC_RUNTIME_LIBRARY says
+        # otherwise, so match that here. Any spelling containing "DLL" selects the
+        # dynamic CRT, which also covers the generator-expression forms such as
+        # "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL".
+        if(CMAKE_MSVC_RUNTIME_LIBRARY AND NOT CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "DLL")
+            set(AIC_CRT_DIR "static-crt")
+        else()
+            set(AIC_CRT_DIR "dynamic-crt")
+        endif()
+        set(AIC_LIB_FILE "${AIC_C_LIBDIR}/${AIC_CRT_DIR}/aic.lib")
         set(AIC_LIB_KIND STATIC)
     else()
         set(AIC_LIB_FILE "${AIC_C_LIBDIR}/aic.dll")
-        set(AIC_IMPLIB   "${AIC_C_LIBDIR}/aic.lib")
+        set(AIC_IMPLIB   "${AIC_C_LIBDIR}/aic.dll.lib")
         set(AIC_LIB_KIND SHARED)
     endif()
 elseif(APPLE)

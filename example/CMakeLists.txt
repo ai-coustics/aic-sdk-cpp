@@ -26,21 +26,27 @@ else()
     FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.21.0
+        GIT_TAG        0.22.0
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(aic_sdk)
 endif()
 
-add_executable(my_app main.cpp)
+# One executable per example. Enhancement, VAD and analysis are separate objects with separate
+# models, so each gets its own self-contained example.
+add_executable(aic-sdk-enhancement enhancement.cpp)
+add_executable(aic-sdk-vad vad.cpp)
+add_executable(aic-sdk-analyzer analyzer.cpp)
 
-# Link against the SDK
-target_link_libraries(my_app PRIVATE aic-sdk)
+foreach(example aic-sdk-enhancement aic-sdk-vad aic-sdk-analyzer)
+    # Link against the SDK
+    target_link_libraries(${example} PRIVATE aic-sdk)
 
-if(APPLE)
-    target_link_libraries(my_app PRIVATE "-framework Security" "-framework CoreFoundation")
-endif()
+    if(APPLE)
+        target_link_libraries(${example} PRIVATE "-framework Security" "-framework CoreFoundation")
+    endif()
 
-if(WIN32)
-    target_link_libraries(my_app PRIVATE crypt32)
-endif()
+    if(WIN32)
+        target_link_libraries(${example} PRIVATE crypt32)
+    endif()
+endforeach()

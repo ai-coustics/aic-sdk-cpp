@@ -4,6 +4,25 @@ extern "C" void aic_set_sdk_wrapper_id(uint32_t id);
 
 namespace aic
 {
+namespace
+{
+
+// Converts the wrapper's OtelConfig to the C struct. Returns nullptr when no config was provided,
+// which lets the SDK fall back to the runtime environment.
+const ::AicOtelConfig* to_c_otel_config(const OtelConfig* otel_config, ::AicOtelConfig& storage)
+{
+    if (!otel_config)
+    {
+        return nullptr;
+    }
+
+    storage.enable             = otel_config->enable;
+    storage.session_id         = otel_config->session_id;
+    storage.export_interval_ms = otel_config->export_interval_ms;
+    return &storage;
+}
+
+} // namespace
 
 Result<Model> Model::create_from_file(const std::string& file_path)
 {
@@ -38,14 +57,7 @@ Result<Processor> Processor::create(const Model&       model,
     aic_set_sdk_wrapper_id(1);
 
     ::AicOtelConfig        c_otel{};
-    const ::AicOtelConfig* c_otel_ptr = nullptr;
-    if (otel_config)
-    {
-        c_otel.enable             = otel_config->enable;
-        c_otel.session_id         = otel_config->session_id;
-        c_otel.export_interval_ms = otel_config->export_interval_ms;
-        c_otel_ptr                = &c_otel;
-    }
+    const ::AicOtelConfig* c_otel_ptr = to_c_otel_config(otel_config, c_otel);
 
     ::AicProcessor* raw_processor = nullptr;
     ::AicErrorCode  rc =
@@ -73,10 +85,30 @@ Result<ProcessorContext> Processor::create_context() const
                                     static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
-Result<VadContext> Processor::create_vad_context() const
+Result<Vad> Vad::create(const Model&       model,
+                        const std::string& license_key,
+                        const OtelConfig*  otel_config)
+{
+    aic_set_sdk_wrapper_id(1);
+
+    ::AicOtelConfig        c_otel{};
+    const ::AicOtelConfig* c_otel_ptr = to_c_otel_config(otel_config, c_otel);
+
+    ::AicVad*      raw_vad = nullptr;
+    ::AicErrorCode rc = aic_vad_create(&raw_vad, model.model_, license_key.c_str(), c_otel_ptr);
+
+    if (rc == AIC_ERROR_CODE_SUCCESS)
+    {
+        return Result<Vad>(Vad(raw_vad), ErrorCode::Success);
+    }
+
+    return Result<Vad>(Vad(), static_cast<ErrorCode>(static_cast<int>(rc)));
+}
+
+Result<VadContext> Vad::create_context() const
 {
     ::AicVadContext* raw_context = nullptr;
-    ::AicErrorCode   rc          = aic_vad_context_create(&raw_context, processor_);
+    ::AicErrorCode   rc          = aic_vad_context_create(&raw_context, vad_);
 
     if (rc == AIC_ERROR_CODE_SUCCESS)
     {
