@@ -104,6 +104,20 @@ struct OtelConfig
     const char* session_id = nullptr;
     /// Export interval in milliseconds. 0 = default (60 000 ms).
     uint32_t export_interval_ms = 0;
+
+    /**
+     * Constructs an OtelConfig with the specified parameters.
+     *
+     * @param enable Whether to enable OpenTelemetry telemetry.
+     * @param session_id Optional session ID. nullptr = auto-generate.
+     * @param export_interval_ms Export interval in milliseconds. 0 = default (60 000 ms).
+     */
+    OtelConfig(bool enable = false, const char* session_id = nullptr,
+               uint32_t export_interval_ms = 0)
+        : enable(enable)
+        , session_id(session_id)
+        , export_interval_ms(export_interval_ms)
+    {}
 };
 
 /**

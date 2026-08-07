@@ -509,6 +509,9 @@ otel.export_interval_ms = 5000;     // 0 = default (60 000 ms)
 auto processor = aic::Processor::create(model, license_key, &otel).take();
 ```
 
+`OtelConfig` also has a constructor, so it can be brace-initialized instead:
+`aic::OtelConfig otel{true, "my-session-id", 5000};`
+
 Alternatively, pass `nullptr` (the default) and set `AIC_SDK_OTEL_ENABLE=1` in the environment to
 enable telemetry globally.
 
