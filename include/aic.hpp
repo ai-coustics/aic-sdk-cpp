@@ -1375,7 +1375,8 @@ class Analyzer
             return Result<AnalysisResult>(out, ErrorCode::Success);
         }
 
-        return Result<AnalysisResult>(AnalysisResult{}, static_cast<ErrorCode>(static_cast<int>(rc)));
+        return Result<AnalysisResult>(AnalysisResult{},
+                                       static_cast<ErrorCode>(static_cast<int>(rc)));
     }
 
     /**

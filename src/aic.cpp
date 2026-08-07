@@ -51,8 +51,8 @@ Result<Model> Model::create_from_buffer(const uint8_t* buffer, size_t buffer_len
 }
 
 Result<Processor> Processor::create(const Model&       model,
-                                   const std::string& license_key,
-                                   const OtelConfig*  otel_config)
+                                    const std::string& license_key,
+                                    const OtelConfig*  otel_config)
 {
     aic_set_sdk_wrapper_id(1);
 
