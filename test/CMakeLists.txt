@@ -26,6 +26,11 @@ set(AIC_TEST_MODEL_ID "quail-vf-2.2-s-16khz" CACHE STRING "Model used by the end
 set(AIC_TEST_MODEL_VERSION "v6" CACHE STRING "Model version compatible with this SDK release")
 set(AIC_TEST_MODEL "" CACHE FILEPATH "Local model file to use instead of downloading")
 
+# Same idea as AIC_TEST_MODEL_ID/AIC_TEST_MODEL, but for the standalone VAD end-to-end test. Shares
+# AIC_TEST_MODEL_VERSION since both models must be compatible with the same SDK release.
+set(AIC_TEST_VAD_MODEL_ID "vad-2.1-xxs-16khz" CACHE STRING "Model used by the end-to-end VAD test")
+set(AIC_TEST_VAD_MODEL "" CACHE FILEPATH "Local VAD model file to use instead of downloading")
+
 set(AIC_ARTIFACTS_URL "https://artifacts.ai-coustics.io/")
 
 # Resolves a model ID through the public manifest and downloads it. Model filenames carry a content
@@ -94,19 +99,27 @@ endif()
 enable_testing()
 
 add_executable(aic-sdk-e2e-test e2e_test.cpp)
+add_executable(aic-sdk-vad-e2e-test vad_e2e_test.cpp)
 
 target_link_libraries(aic-sdk-e2e-test PRIVATE aic-sdk AudioFile)
+target_link_libraries(aic-sdk-vad-e2e-test PRIVATE aic-sdk AudioFile)
 
 if(APPLE)
     target_link_libraries(aic-sdk-e2e-test PRIVATE "-framework Security" "-framework CoreFoundation")
+    target_link_libraries(aic-sdk-vad-e2e-test PRIVATE "-framework Security" "-framework CoreFoundation")
 endif()
 
 if(WIN32)
     target_link_libraries(aic-sdk-e2e-test PRIVATE crypt32)
+    target_link_libraries(aic-sdk-vad-e2e-test PRIVATE crypt32)
 endif()
 
 if(NOT AIC_TEST_MODEL)
     aic_download_model("${AIC_TEST_MODEL_ID}" "${AIC_TEST_MODEL_VERSION}" AIC_TEST_MODEL)
+endif()
+
+if(NOT AIC_TEST_VAD_MODEL)
+    aic_download_model("${AIC_TEST_VAD_MODEL_ID}" "${AIC_TEST_MODEL_VERSION}" AIC_TEST_VAD_MODEL)
 endif()
 
 set(AIC_TEST_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/test_signal.wav")
@@ -119,5 +132,18 @@ if(NOT EXISTS "${AIC_TEST_REFERENCE}")
         "expected ${AIC_TEST_REFERENCE}")
 endif()
 
+set(AIC_TEST_VAD_REFERENCE
+    "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/${AIC_TEST_VAD_MODEL_ID}/vad_results.json")
+
+if(NOT EXISTS "${AIC_TEST_VAD_REFERENCE}")
+    message(FATAL_ERROR
+        "No reference output for AIC_TEST_VAD_MODEL_ID=${AIC_TEST_VAD_MODEL_ID}: "
+        "expected ${AIC_TEST_VAD_REFERENCE}")
+endif()
+
 add_test(NAME enhancement_full_file
          COMMAND aic-sdk-e2e-test "${AIC_TEST_MODEL}" "${AIC_TEST_INPUT}" "${AIC_TEST_REFERENCE}")
+
+add_test(NAME vad_process_blocks
+         COMMAND aic-sdk-vad-e2e-test "${AIC_TEST_VAD_MODEL}" "${AIC_TEST_INPUT}"
+                 "${AIC_TEST_VAD_REFERENCE}")

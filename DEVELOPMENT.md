@@ -32,3 +32,13 @@ cmake --build build-test -j
     test/fixtures/test_signal.wav \
     test/fixtures/<model-id>/test_signal_enhanced.wav
 ```
+
+Regenerate the reference decisions for a VAD model:
+
+```sh
+cmake -B build-test ./test -DAIC_TEST_VAD_MODEL_ID=<model-id>
+cmake --build build-test -j
+./build-test/aic-sdk-vad-e2e-test --generate build-test/models/<model-file>.aicmodel \
+    test/fixtures/test_signal.wav \
+    test/fixtures/<model-id>/vad_results.json
+```
