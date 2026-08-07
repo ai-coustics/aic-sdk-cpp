@@ -69,6 +69,9 @@ If you need per-channel output instead of a downmix, create one `Processor` per 
 The same applies to the analyzer: downmix multi-channel audio before calling `Collector::buffer`,
 or create a separate `AnalyzerPair` per channel.
 
+The OpenTelemetry `audio.channels` metric has been kept for backwards compatibility, but it now
+always reports exactly one channel.
+
 ### VAD moved into its own object, energy-based VAD removed
 
 Voice activity detection is no longer a side effect of enhancement. It is now a first-class type,
@@ -171,6 +174,10 @@ size_t prediction_delay = vad_ctx.get_prediction_delay();
 - `VadContext::reset`, `VadContext::get_prediction_delay`, `VadContext::update_bearer_token`
 - `VadContext::is_speech_detected`, `VadContext::get_raw_vad_probability`,
   `VadContext::set_parameter`, `VadContext::get_parameter`
+
+The OpenTelemetry `experimental.vad.speech_duration` metric is now reported for dedicated VAD
+models only. Enhancement and bypass sessions no longer derive VAD state from the model output, so
+they always report zero. `processor.vad_created` reports whether the session runs a VAD model.
 
 ### Renamed error codes
 
