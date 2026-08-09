@@ -130,6 +130,19 @@ else() # Linux
     endif()
 endif()
 
+# Report an invalid SDK path or layout before consumers fail to link.
+if(NOT EXISTS "${AIC_LIB_FILE}")
+    message(FATAL_ERROR
+        "ai-coustics C SDK library not found: ${AIC_LIB_FILE}\n"
+        "Check the SDK layout, AIC_SDK_ROOT, and AIC_SDK_USE_STATIC.")
+endif()
+
+if(DEFINED AIC_IMPLIB AND NOT EXISTS "${AIC_IMPLIB}")
+    message(FATAL_ERROR
+        "ai-coustics C SDK import library not found: ${AIC_IMPLIB}\n"
+        "Check the SDK layout and AIC_SDK_ROOT.")
+endif()
+
 # -------- Imported C SDK target (build tree) --------
 add_library(aic_c ${AIC_LIB_KIND} IMPORTED GLOBAL)
 
