@@ -1376,7 +1376,7 @@ class Analyzer
         }
 
         return Result<AnalysisResult>(AnalysisResult{},
-                                       static_cast<ErrorCode>(static_cast<int>(rc)));
+                                      static_cast<ErrorCode>(static_cast<int>(rc)));
     }
 
     /**

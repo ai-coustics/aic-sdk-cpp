@@ -130,9 +130,9 @@ int main(int argc, char** argv)
 
     // The C SDK's reference test compares with an absolute tolerance of 1e-6.
     auto epsilon = 1e-6f;
-    if (!generate && argc > 4 && argv[4] != nullptr)
+    if (!generate && argc > first + 3 && argv[first + 3] != nullptr)
     {
-        epsilon = static_cast<float>(std::atof(argv[4]));
+        epsilon = static_cast<float>(std::atof(argv[first + 3]));
     }
 
     std::cout << "SDK version: " << aic::get_sdk_version() << "\n";
