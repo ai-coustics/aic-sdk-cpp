@@ -17,13 +17,13 @@ jobs:
     env:
       AIC_SDK_LICENSE: ${{ secrets.AIC_SDK_LICENSE }}
       # Model version required by this SDK release (aic_get_compatible_model_version).
-      AIC_MODEL_VERSION: v6
+      AIC_MODEL_VERSION: v7
       # Enhancement model driving the Processor example.
       AIC_ENHANCEMENT_MODEL_ID: quail-vf-2.2-s-16khz
       # Dedicated VAD model driving the standalone Vad example.
       AIC_VAD_MODEL_ID: vad-2.1-xxs-16khz
       # Dedicated analysis model driving the Collector / Analyzer example.
-      AIC_ANALYSIS_MODEL_ID: tyto-l-16khz
+      AIC_ANALYSIS_MODEL_ID: tyto-1.1-l-16khz
 
     steps:
       - uses: actions/checkout@v4
