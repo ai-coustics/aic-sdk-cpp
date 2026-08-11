@@ -132,12 +132,12 @@ struct AnalysisResult
     float speaker_reverb;
     /// Measure of speaker loudness.
     float speaker_loudness;
-    /// Measure of interference from additional speakers present in audio.
+    /// Measure of interfering speech from sources other than the main speaker.
     float interfering_speech;
-    /// Measure of interfering speech content from media devices (TVs, radios, phones, etc.).
-    float media_speech;
     /// Measure of ambient or environmental noise.
     float noise;
+    /// Measure of artifacts introduced by lossy speech codecs (low bitrate, narrowband codecs).
+    float codec_degradation;
     /// Measure of audio dropouts or discontinuities (packet loss, frame erasure, jitter, CPU
     /// overload).
     float packet_loss;
@@ -1369,8 +1369,8 @@ class Analyzer
 
         if (rc == AIC_ERROR_CODE_SUCCESS)
         {
-            AnalysisResult out{raw.risk_score,        raw.speaker_reverb, raw.speaker_loudness,
-                               raw.interfering_speech, raw.media_speech,   raw.noise,
+            AnalysisResult out{raw.risk_score,         raw.speaker_reverb, raw.speaker_loudness,
+                               raw.interfering_speech, raw.noise,          raw.codec_degradation,
                                raw.packet_loss};
             return Result<AnalysisResult>(out, ErrorCode::Success);
         }

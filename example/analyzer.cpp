@@ -150,8 +150,8 @@ int main(int argc, char** argv)
     std::cout << "speaker_reverb:     " << scores.speaker_reverb << "\n";
     std::cout << "speaker_loudness:   " << scores.speaker_loudness << "\n";
     std::cout << "interfering_speech: " << scores.interfering_speech << "\n";
-    std::cout << "media_speech:       " << scores.media_speech << "\n";
     std::cout << "noise:              " << scores.noise << "\n";
+    std::cout << "codec_degradation:  " << scores.codec_degradation << "\n";
     std::cout << "packet_loss:        " << scores.packet_loss << "\n";
 
     // Clears the buffered audio and the state of both halves. The collector stays initialized.
