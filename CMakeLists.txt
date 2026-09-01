@@ -134,7 +134,8 @@ endif()
 if(NOT EXISTS "${AIC_LIB_FILE}")
     message(FATAL_ERROR
         "ai-coustics C SDK library not found: ${AIC_LIB_FILE}\n"
-        "Check the SDK layout, AIC_SDK_ROOT, and AIC_SDK_USE_STATIC.")
+        "Check that AIC_SDK_ROOT points to a compatible C SDK installation and\n"
+        "that AIC_SDK_USE_STATIC matches the available library type.")
 endif()
 
 if(DEFINED AIC_IMPLIB AND NOT EXISTS "${AIC_IMPLIB}")
