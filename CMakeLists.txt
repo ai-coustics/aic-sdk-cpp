@@ -141,7 +141,7 @@ endif()
 if(DEFINED AIC_IMPLIB AND NOT EXISTS "${AIC_IMPLIB}")
     message(FATAL_ERROR
         "ai-coustics C SDK import library not found: ${AIC_IMPLIB}\n"
-        "Check the SDK layout and AIC_SDK_ROOT.")
+        "Check that AIC_SDK_ROOT points to a compatible C SDK installation.")
 endif()
 
 # -------- Imported C SDK target (build tree) --------
