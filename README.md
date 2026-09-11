@@ -569,4 +569,7 @@ The wrapper is fully C++11 compatible. On Linux, you will need at least GLIBC 2.
 
 ## License
 
-This C++ wrapper is distributed under the Apache 2.0 license. The core SDK library is distributed under the proprietary AIC-SDK license.
+This C++ wrapper is distributed under the Apache 2.0 license (`LICENSE`). The core SDK binary and
+the models are proprietary and governed by the ai-coustics
+[Terms of Service](https://ai-coustics.com/legal/terms) and
+[Model License](https://ai-coustics.com/legal/model-license); see `LICENSE.AIC-SDK`.
