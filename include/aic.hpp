@@ -210,14 +210,12 @@ enum class VadParameter : int
     /**
      * Controls the sensitivity of the VAD.
      *
-     * VAD models output a probability of speech presence for each processed audio block,
-     * 1.0 being the model is certain speech is present and 0.0 being the model is certain
-     * speech is not present. The probability is compared against the sensitivity threshold
-     * to determine if speech is detected.
+     * For standalone Vad models, this is a speech probability threshold: values above the
+     * threshold trigger speech detection. Range: 0.0 to 1.0.
      *
-     * A value above the threshold will trigger a speech detected decision.
-     *
-     * **Range:** 0.0 to 1.0
+     * For EnergyVadContext, this controls the energy threshold of the enhanced signal,
+     * calculated as 10 ^ (-sensitivity). Higher values require less energy and detect speech
+     * more aggressively. Range: 1.0 to 15.0.
      *
      * **Default:** model-specific
      */
@@ -514,7 +512,8 @@ class ProcessorContext
      * Call this when the audio stream is interrupted or when seeking
      * to prevent artifacts from previous audio content.
      *
-     * The processor stays initialized to the configured settings.
+     * The processor stays initialized to the configured settings. Any associated energy VAD
+     * is also reset.
      *
      * @return ErrorCode::Success on success, or an error code on failure.
      *
@@ -626,6 +625,161 @@ class ProcessorContext
     // Constructor: wraps an existing SDK processor context handle; this instance becomes
     // responsible for destroying it
     explicit ProcessorContext(::AicProcessorContext* context) : context_(context) {}
+};
+
+/**
+ * Move-only control handle for a processor's energy-based VAD.
+ *
+ * All contexts from one processor share state and parameters. A context may safely outlive
+ * its processor. Control and query methods are thread-safe and real-time safe; destruction
+ * is not real-time safe and must not overlap calls on the same handle.
+ */
+class EnergyVadContext
+{
+  private:
+    ::AicEnergyVadContext* context_;
+
+  public:
+    // Destructor: releases the underlying SDK VAD context handle if one is owned
+    ~EnergyVadContext()
+    {
+        if (context_)
+        {
+            aic_energy_vad_context_destroy(context_);
+        }
+    }
+
+    // Move constructor: transfers ownership of the energy VAD context handle
+    EnergyVadContext(EnergyVadContext&& other) noexcept : context_(other.context_)
+    {
+        other.context_ = nullptr;
+    }
+
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
+    EnergyVadContext& operator=(EnergyVadContext&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (context_)
+            {
+                aic_energy_vad_context_destroy(context_);
+            }
+            context_       = other.context_;
+            other.context_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    EnergyVadContext(const EnergyVadContext&) = delete;
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
+    EnergyVadContext& operator=(const EnergyVadContext&) = delete;
+
+    /**
+     * Clears the energy VAD state and immediately resets the prediction to false.
+     *
+     * Call when seeking or when the stream is interrupted. Parameters are retained and the
+     * backing processor is not reset. ProcessorContext::reset also resets this VAD.
+     *
+     * @return ErrorCode::Success on success, or an error code on failure.
+     * @note Thread-safe and real-time safe.
+     */
+    ErrorCode reset() const
+    {
+        ::AicErrorCode rc = aic_energy_vad_context_reset(context_);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Returns the energy VAD's prediction, false before processing or after reset.
+     *
+     * Predictions update automatically during Processor::process, using the enhanced signal
+     * before output mixing. They stop updating if the processor stops processing or is destroyed.
+     * The prediction lags input by get_prediction_delay() samples; speech hold and minimum
+     * speech duration additionally affect decision timing.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    bool is_speech_detected() const
+    {
+        bool           value = false;
+        ::AicErrorCode rc    = aic_energy_vad_context_is_speech_detected(context_, &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+    /**
+     * Returns prediction latency in samples, equal to ProcessorContext::get_audio_delay.
+     *
+     * Energy detection adds no extra enhancement pass or audio delay. Speech hold and minimum
+     * speech duration are not included in this value.
+     * Before initialization, returns the base delay at the model's native sample rate and
+     * optimal block size. After initialization, uses the configured sample rate and includes
+     * input buffering for non-optimal or variable block sizes.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    size_t get_prediction_delay() const
+    {
+        size_t         delay = 0;
+        ::AicErrorCode rc    = aic_energy_vad_context_get_prediction_delay(context_, &delay);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return delay;
+    }
+
+    /**
+     * Modifies a VAD parameter.
+     *
+     * All parameters can be changed during audio processing.
+     * This function can be called from any thread.
+     *
+     * @param parameter Parameter to modify.
+     * @param value New parameter value. Sensitivity ranges from 1.0 to 15.0.
+     * @return ErrorCode::Success on success, or an error code on failure.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    ErrorCode set_parameter(VadParameter parameter, float value) const
+    {
+        ::AicErrorCode rc = aic_energy_vad_context_set_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), value);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Retrieves the current value of a parameter.
+     *
+     * This function can be called from any thread.
+     *
+     * @param parameter Parameter to query.
+     * @return Current parameter value.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    float get_parameter(VadParameter parameter) const
+    {
+        float          value = 0.0f;
+        ::AicErrorCode rc    = aic_energy_vad_context_get_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+  private:
+    // Friend declaration: allows Processor to construct EnergyVadContext instances from raw handles
+    friend class Processor;
+
+    // Constructor: creates an empty VAD context wrapper for internal use when creation fails
+    EnergyVadContext() : context_(nullptr) {}
+    // Constructor: wraps an existing SDK VAD context handle; this instance becomes responsible for
+    // destroying it
+    explicit EnergyVadContext(::AicEnergyVadContext* context) : context_(context) {}
 };
 
 // ---------------------------
@@ -769,6 +923,21 @@ class Processor
      * @note Thread-safe.
      */
     Result<ProcessorContext> create_context() const;
+
+    /**
+     * Creates a context for the energy VAD driven by this processor's enhanced signal.
+     *
+     * No separate model or process call is needed. All contexts share the same VAD.
+     * Creating a context keeps enhancement inference active even when bypassed or when the
+     * enhancement level is zero, for the processor's lifetime, including after contexts are
+     * destroyed. A context can safely outlive the processor, but stops receiving new data.
+     *
+     * @return Result containing EnergyVadContext, or ErrorCode::ModelTypeUnsupported if this
+     *         processor does not support energy VAD.
+     * @warning Allocates memory; not real-time safe. Do not use or destroy the processor from
+     *          another thread during this call.
+     */
+    Result<EnergyVadContext> create_energy_vad_context() const;
 
   private:
     // Constructor: creates an empty Processor wrapper for internal use when creation fails

@@ -90,7 +90,7 @@ else()
     FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.24.0
+        GIT_TAG        0.25.0
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(aic_sdk)
@@ -100,18 +100,22 @@ enable_testing()
 
 add_executable(aic-sdk-e2e-test e2e_test.cpp)
 add_executable(aic-sdk-vad-e2e-test vad_e2e_test.cpp)
+add_executable(aic-sdk-energy-vad-test energy_vad_test.cpp)
 
 target_link_libraries(aic-sdk-e2e-test PRIVATE aic-sdk AudioFile)
 target_link_libraries(aic-sdk-vad-e2e-test PRIVATE aic-sdk AudioFile)
+target_link_libraries(aic-sdk-energy-vad-test PRIVATE aic-sdk AudioFile)
 
 if(APPLE)
     target_link_libraries(aic-sdk-e2e-test PRIVATE "-framework Security" "-framework CoreFoundation")
     target_link_libraries(aic-sdk-vad-e2e-test PRIVATE "-framework Security" "-framework CoreFoundation")
+    target_link_libraries(aic-sdk-energy-vad-test PRIVATE "-framework Security" "-framework CoreFoundation")
 endif()
 
 if(WIN32)
     target_link_libraries(aic-sdk-e2e-test PRIVATE crypt32)
     target_link_libraries(aic-sdk-vad-e2e-test PRIVATE crypt32)
+    target_link_libraries(aic-sdk-energy-vad-test PRIVATE crypt32)
 endif()
 
 if(NOT AIC_TEST_MODEL)
@@ -147,3 +151,6 @@ add_test(NAME enhancement_full_file
 add_test(NAME vad_process_blocks
          COMMAND aic-sdk-vad-e2e-test "${AIC_TEST_VAD_MODEL}" "${AIC_TEST_INPUT}"
                  "${AIC_TEST_VAD_REFERENCE}")
+
+add_test(NAME energy_vad
+         COMMAND aic-sdk-energy-vad-test "${AIC_TEST_MODEL}" "${AIC_TEST_INPUT}")

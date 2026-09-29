@@ -85,9 +85,22 @@ Result<ProcessorContext> Processor::create_context() const
                                     static_cast<ErrorCode>(static_cast<int>(rc)));
 }
 
-Result<Vad> Vad::create(const Model&       model,
-                        const std::string& license_key,
-                        const OtelConfig*  otel_config)
+Result<EnergyVadContext> Processor::create_energy_vad_context() const
+{
+    ::AicEnergyVadContext* raw_context = nullptr;
+    ::AicErrorCode rc = aic_energy_vad_context_create(&raw_context, processor_);
+
+    if (rc == AIC_ERROR_CODE_SUCCESS)
+    {
+        return Result<EnergyVadContext>(EnergyVadContext(raw_context), ErrorCode::Success);
+    }
+
+    return Result<EnergyVadContext>(EnergyVadContext(),
+                                    static_cast<ErrorCode>(static_cast<int>(rc)));
+}
+
+Result<Vad> Vad::create(const Model& model, const std::string& license_key,
+                        const OtelConfig* otel_config)
 {
     aic_set_sdk_wrapper_id(1);
 
