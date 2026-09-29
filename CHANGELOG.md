@@ -3,6 +3,35 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## 0.25.0
+
+### New Features
+
+- Added energy-based VAD support on enhancement processors through
+  `Processor::create_energy_vad_context()` and `EnergyVadContext`. This is the same energy-based
+  VAD available in pre-0.22 SDK versions. It behaves differently from the previous version. It now
+  picks up quiet and distant speech much more reliably, so you'll miss fewer words on speakerphones
+  and in far-field setups. It also triggers more often on background noise and background voices.
+  If you see too many false activations, lower the sensitivity parameter (default 6.0). A value
+  around 4.0 gives a false-activation rate close to the previous version while still detecting
+  more distant speech.
+
+### Improvements
+
+- Added new SIMD-enabled operations in AirTen, yielding better inference performance.
+
+### Bug Fixes
+
+- Fixed `experimental.audio.output_clipping_samples` to count clipping in the final mixed output.
+
+### Platform Support
+
+- The C SDK added the Linux musl release targets `x86_64-unknown-linux-musl` and
+  `aarch64-unknown-linux-musl`. These packages ship `lib/libaic.a` only; there is no musl
+  `libaic.so`, so dynamic linking and `dlopen` are not available for them. Link the archive with a
+  musl-native toolchain, such as GCC on Alpine. For this wrapper, point `AIC_SDK_ROOT` to the
+  extracted musl package and keep `AIC_SDK_USE_STATIC=ON`.
+
 ## 0.24.0 - 2026-09-07
 
 ### New Features

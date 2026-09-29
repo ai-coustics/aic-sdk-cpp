@@ -95,7 +95,7 @@ template <typename T> struct Result
  */
 struct OtelConfig
 {
-    /// Whether to enable OpenTelemetry telemetry.
+    /// Whether to enable OpenTelemetry telemetry (overrides AIC_SDK_OTEL_ENABLE).
     bool enable = false;
     /// Optional session ID. nullptr = auto-generate.
     const char* session_id = nullptr;
@@ -105,7 +105,7 @@ struct OtelConfig
     /**
      * Constructs an OtelConfig with the specified parameters.
      *
-     * @param enable Whether to enable OpenTelemetry telemetry.
+     * @param enable Whether to enable telemetry, overriding AIC_SDK_OTEL_ENABLE.
      * @param session_id Optional session ID. nullptr = auto-generate.
      * @param export_interval_ms Export interval in milliseconds. 0 = default (60 000 ms).
      */
@@ -210,14 +210,14 @@ enum class VadParameter : int
     /**
      * Controls the sensitivity of the VAD.
      *
-     * VAD models output a probability of speech presence for each processed audio block,
-     * 1.0 being the model is certain speech is present and 0.0 being the model is certain
-     * speech is not present. The probability is compared against the sensitivity threshold
-     * to determine if speech is detected.
+     * For standalone Vad models, this is a speech probability threshold: values above the
+     * threshold trigger speech detection. Range: 0.0 to 1.0.
      *
-     * A value above the threshold will trigger a speech detected decision.
+     * For EnergyVadContext, this controls the energy threshold of the enhanced signal,
+     * calculated as 10 ^ (-sensitivity). Higher values require less energy and detect speech
+     * more aggressively. Energy above the threshold triggers speech detection.
      *
-     * **Range:** 0.0 to 1.0
+     * **Range**: 1.0 to 15.0.
      *
      * **Default:** model-specific
      */
@@ -250,7 +250,11 @@ class Model
     ::AicModel* model_;
 
   public:
-    // Destructor: releases the underlying SDK model handle if one is owned
+    /**
+     * Releases the owned model handle.
+     *
+     * @warning Do not use this object from another thread during destruction or move assignment.
+     */
     ~Model()
     {
         if (model_)
@@ -294,43 +298,44 @@ class Model
      * A single model instance can be used to create multiple processors, VADs or analyzers,
      * according to the model type.
      *
-     * @param file_path Path to the model file.
+     * The model data is memory-mapped from the file, not copied.
+     *
+     * @param file_path UTF-8 path to the model file.
      * @return Result containing the Model and an ErrorCode.
      *
      * @note Processor, Vad and Analyzer instances retain a shared reference to the model data.
      *       It is safe to destroy the Model after creating the desired objects.
-     *       The memory used by the model is freed after all of them are destroyed.
+     *       The shared model data is released after all of them are destroyed.
      * @warning The file must not be modified or deleted while the Model, or any object created
      *          from it, is alive.
-     * @warning Not thread-safe. Ensure no other threads are using the model handle or the same file
-     * path.
      */
     static Result<Model> create_from_file(const std::string& file_path);
 
     /**
      * Creates a new model instance from a memory buffer.
      *
-     * The buffer must remain valid and unchanged for the lifetime of the model.
+     * The buffer is referenced, not copied. It must remain valid and unchanged until the Model
+     * and every Processor, Vad or Analyzer created from it have all been destroyed.
+     * Destroying these objects does not free the caller-owned buffer.
      *
-     * @param buffer Pointer to model bytes (must be 64-byte aligned).
+     * @param buffer Pointer to model bytes (must be non-null and 64-byte aligned).
      * @param buffer_len Size of the model buffer in bytes.
      * @return Result containing the Model and an ErrorCode.
      *
      * @note Processor, Vad and Analyzer instances retain a shared reference to the model data.
      *       It is safe to destroy the Model after creating the desired objects.
-     *       The memory used by the model is freed after all of them are destroyed.
-     * @warning Not thread-safe. Ensure no other threads are using the model handle.
      */
     static Result<Model> create_from_buffer(const uint8_t* buffer, size_t buffer_len);
 
     /**
-     * Returns a pointer to the model identifier.
+     * Returns an owned copy of the model identifier.
      *
      * The returned string is UTF-8 encoded and null-terminated.
      *
      * @return Model identifier string (UTF-8).
      *
-     * @note The returned string is valid for as long as the Model is alive.
+     * @note The returned string remains valid independently of the Model.
+     * @warning May allocate memory; not guaranteed real-time safe.
      * @warning Not safe against concurrent model destruction.
      */
     std::string get_id() const
@@ -469,7 +474,12 @@ class ProcessorContext
     ::AicProcessorContext* context_;
 
   public:
-    // Destructor: releases the underlying SDK processor context handle if one is owned
+    /**
+     * Releases this context handle without destroying the backing processor.
+     *
+     * @warning Do not use this handle concurrently with destruction or move assignment.
+     *          Calls using other context handles may continue.
+     */
     ~ProcessorContext()
     {
         if (context_)
@@ -514,7 +524,8 @@ class ProcessorContext
      * Call this when the audio stream is interrupted or when seeking
      * to prevent artifacts from previous audio content.
      *
-     * The processor stays initialized to the configured settings.
+     * The processor stays initialized to the configured settings. Any associated energy VAD
+     * is also reset.
      *
      * @return ErrorCode::Success on success, or an error code on failure.
      *
@@ -533,8 +544,9 @@ class ProcessorContext
      * This function can be called from any thread.
      *
      * @param parameter Parameter to modify.
-     * @param value New parameter value.
-     * @return ErrorCode::Success on success, or an error code on failure.
+     * @param value New parameter value. See ProcessorParameter for ranges.
+     * @return ErrorCode::Success on success, or ErrorCode::ParameterOutOfRange for a value
+     *         outside the valid range.
      *
      * @note Thread-safe and real-time safe.
      */
@@ -604,11 +616,20 @@ class ProcessorContext
      * JWTs. If either side is not a JWT, returns ErrorCode::TokenUpdateUnsupported and the
      * existing token stays in use.
      *
+     * On any error, the active token and telemetry session remain unchanged, with no backoff
+     * or interruption to processing. An unparseable token returns ErrorCode::LicenseFormatInvalid.
+     *
+     * Success applies the token immediately after local format validation; it does not mean
+     * the backend has accepted it. If the backend rejects it (for example, expired or revoked),
+     * the SDK retries with backoff without restoring the old token. Audio processing is
+     * eventually disabled if no accepted token arrives in time. Supplying a known-good token
+     * during that window recovers the session.
+     *
      * @param token New JWT token string.
      * @return ErrorCode::Success on success, or an error code on failure.
      *
      * @note Thread-safe. Safe to call concurrently with audio processing.
-     * @warning Not real-time safe; allocates memory and performs cryptographic work.
+     * @warning Not real-time safe; locks a mutex and allocates memory.
      */
     ErrorCode update_bearer_token(const std::string& token) const
     {
@@ -628,6 +649,173 @@ class ProcessorContext
     explicit ProcessorContext(::AicProcessorContext* context) : context_(context) {}
 };
 
+/**
+ * Move-only control handle for a processor's energy-based VAD.
+ *
+ * All contexts from one processor share state and parameters. A context may safely outlive
+ * its processor. Control and query methods are thread-safe and real-time safe; destruction
+ * is not real-time safe and must not overlap calls on the same handle.
+ */
+class EnergyVadContext
+{
+  private:
+    ::AicEnergyVadContext* context_;
+
+  public:
+    /**
+     * Releases this context handle without destroying the backing processor or disabling
+     * its energy VAD. Deallocates memory; not real-time safe.
+     *
+     * @warning Do not use this handle concurrently with destruction or move assignment.
+     *          Calls using other context handles may continue.
+     */
+    ~EnergyVadContext()
+    {
+        if (context_)
+        {
+            aic_energy_vad_context_destroy(context_);
+        }
+    }
+
+    // Move constructor: transfers ownership of the energy VAD context handle
+    EnergyVadContext(EnergyVadContext&& other) noexcept : context_(other.context_)
+    {
+        other.context_ = nullptr;
+    }
+
+    // Move assignment: replaces the currently owned handle with the source handle and clears the
+    // source
+    EnergyVadContext& operator=(EnergyVadContext&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if (context_)
+            {
+                aic_energy_vad_context_destroy(context_);
+            }
+            context_       = other.context_;
+            other.context_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Deleted copy constructor: copying is disabled because this wrapper has unique ownership of
+    // the handle
+    EnergyVadContext(const EnergyVadContext&) = delete;
+
+    // Deleted copy assignment: copying is disabled for the same reason as the copy constructor
+    EnergyVadContext& operator=(const EnergyVadContext&) = delete;
+
+    /**
+     * Clears the energy VAD state and immediately resets the prediction to false.
+     *
+     * Call when seeking or when the stream is interrupted. Parameters are retained and the
+     * backing processor is not reset. ProcessorContext::reset also resets this VAD.
+     *
+     * @return ErrorCode::Success on success, or an error code on failure.
+     * @note Thread-safe and real-time safe.
+     */
+    ErrorCode reset() const
+    {
+        ::AicErrorCode rc = aic_energy_vad_context_reset(context_);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Returns the energy VAD's prediction, false before processing or after reset.
+     *
+     * Predictions update automatically during Processor::process, using the enhanced signal
+     * before output mixing. They stop updating if the processor stops processing or is destroyed.
+     * The prediction lags input by get_prediction_delay() samples; speech hold and minimum
+     * speech duration additionally affect decision timing.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    bool is_speech_detected() const
+    {
+        bool           value = false;
+        ::AicErrorCode rc    = aic_energy_vad_context_is_speech_detected(context_, &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+    /**
+     * Returns prediction latency in samples, equal to ProcessorContext::get_audio_delay.
+     *
+     * Energy detection adds no extra enhancement pass or audio delay. Speech hold and minimum
+     * speech duration are not included in this value.
+     * Before initialization, returns the base delay at the model's native sample rate and
+     * optimal block size. After initialization, uses the configured sample rate and includes
+     * input buffering for non-optimal or variable block sizes. This includes input reblocking,
+     * STFT and enhancement model processing delay. To convert to milliseconds:
+     * delay_ms = (delay_samples * 1000) / sample_rate.
+     *
+     * @return Prediction delay in samples.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    size_t get_prediction_delay() const
+    {
+        size_t         delay = 0;
+        ::AicErrorCode rc    = aic_energy_vad_context_get_prediction_delay(context_, &delay);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return delay;
+    }
+
+    /**
+     * Modifies an energy VAD parameter.
+     *
+     * All parameters can be changed during audio processing.
+     * This function can be called from any thread.
+     *
+     * @param parameter Parameter to modify.
+     * @param value New parameter value. See VadParameter for ranges.
+     *              Sensitivity ranges from 1.0 to 15.0.
+     * @return ErrorCode::Success on success, or ErrorCode::ParameterOutOfRange for a value
+     *         outside the valid range.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    ErrorCode set_parameter(VadParameter parameter, float value) const
+    {
+        ::AicErrorCode rc = aic_energy_vad_context_set_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), value);
+        return static_cast<ErrorCode>(static_cast<int>(rc));
+    }
+
+    /**
+     * Retrieves the current value of a parameter.
+     *
+     * This function can be called from any thread.
+     *
+     * @param parameter Parameter to query.
+     * @return Current parameter value. Sensitivity uses the energy-based range, 1.0 to 15.0.
+     *
+     * @note Thread-safe and real-time safe.
+     */
+    float get_parameter(VadParameter parameter) const
+    {
+        float          value = 0.0f;
+        ::AicErrorCode rc    = aic_energy_vad_context_get_parameter(
+            context_, static_cast<::AicVadParameter>(static_cast<int>(parameter)), &value);
+        assert(rc == AIC_ERROR_CODE_SUCCESS);
+        (void) rc;
+        return value;
+    }
+
+  private:
+    // Friend declaration: allows Processor to construct EnergyVadContext instances from raw handles
+    friend class Processor;
+
+    // Constructor: creates an empty VAD context wrapper for internal use when creation fails
+    EnergyVadContext() : context_(nullptr) {}
+    // Constructor: wraps an existing SDK VAD context handle; this instance becomes responsible for
+    // destroying it
+    explicit EnergyVadContext(::AicEnergyVadContext* context) : context_(context) {}
+};
+
 // ---------------------------
 // Processor wrapper
 // ---------------------------
@@ -638,7 +826,11 @@ class Processor
     ::AicProcessor* processor_;
 
   public:
-    // Destructor: releases the underlying SDK processor handle if one is owned
+    /**
+     * Releases the owned processor handle.
+     *
+     * @warning Do not use this object from another thread during destruction or move assignment.
+     */
     ~Processor()
     {
         if (processor_)
@@ -689,7 +881,12 @@ class Processor
      * @return Result containing the Processor and an ErrorCode. Returns
      *         ErrorCode::ModelTypeUnsupported if the model is not an enhancement or bypass model.
      *
-     * @warning Not thread-safe. Ensure no other threads are using the processor handle.
+     * License errors include ErrorCode::LicenseFormatInvalid,
+     * ErrorCode::LicenseVersionUnsupported and ErrorCode::LicenseExpired.
+     *
+     * @note Reusing a Model creates independent instances sharing its underlying data.
+     *       The Model handle may be destroyed first, but its backing buffer/file must remain
+     *       valid and unchanged for the lifetime of the Processor.
      */
     static Result<Processor> create(const Model&       model,
                                     const std::string& license_key,
@@ -707,11 +904,13 @@ class Processor
      *                   is true).
      * @param variable_block_size If true, permits shorter calls at the cost of added delay;
      *                            calls larger than block_size are always rejected.
-     * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
+     * @return ErrorCode::Success if configuration is accepted, or
+     *         ErrorCode::AudioConfigUnsupported if the configuration is unsupported.
      *
      * @note The processor is mono only. Downmix multi-channel audio before processing, or create
      *       one processor per channel.
-     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
+     * @warning Allocates memory; not real-time safe. Do not use the processor object from
+     *          another thread during initialization.
      */
     ErrorCode initialize(uint32_t sample_rate, size_t block_size, bool variable_block_size)
     {
@@ -723,13 +922,17 @@ class Processor
     /**
      * Enhances speech in the provided mono audio block in-place.
      *
-     * @param audio Pointer to a mono audio block of audio_len samples.
+     * @param audio Non-null pointer to a mono audio block of audio_len samples.
      * @param audio_len Number of samples in the block. Must match the block size from
      *                  initialization, or be less than or equal to it if variable_block_size
      *                  was enabled.
-     * @return ErrorCode::Success on success, or an error code on failure.
+     * @return ErrorCode::Success on success; ErrorCode::NotInitialized if initialize was not
+     *         called, ErrorCode::AudioConfigMismatch for a block size mismatch, or
+     *         ErrorCode::NullPointer for a null audio pointer.
+     *         ErrorCode::ProcessingNotAllowed indicates authorization or usage-reporting failure.
      *
-     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     * @warning Real-time safe, but do not use the processor object from another thread during
+     *          this call.
      */
     ErrorCode process(float* audio, size_t audio_len)
     {
@@ -745,6 +948,9 @@ class Processor
      * A telemetry session is stopped automatically when the Processor is destroyed. Use this
      * function in lifecycle management events where destruction may be delayed, for example when
      * this SDK is wrapped by a language with automatic memory management.
+     *
+     * Blocks until the telemetry session is terminated unless another session is still alive.
+     * In that case, returns early and termination happens asynchronously.
      *
      * @return ErrorCode::Success if termination was requested successfully, or an error code on
      *         failure.
@@ -766,9 +972,24 @@ class Processor
      *
      * @return Result containing the ProcessorContext and an ErrorCode.
      *
-     * @note Thread-safe.
+     * @warning Context creation is not guaranteed real-time safe.
      */
     Result<ProcessorContext> create_context() const;
+
+    /**
+     * Creates a context for the energy VAD driven by this processor's enhanced signal.
+     *
+     * No separate model or process call is needed. All contexts share the same VAD.
+     * Creating a context keeps enhancement inference active even when bypassed or when the
+     * enhancement level is zero, for the processor's lifetime, including after contexts are
+     * destroyed. A context can safely outlive the processor, but stops receiving new data.
+     *
+     * @return Result containing EnergyVadContext, or ErrorCode::ModelTypeUnsupported if this
+     *         processor does not support energy VAD.
+     * @warning Allocates memory; not real-time safe. Do not use or destroy the processor from
+     *          another thread during this call.
+     */
+    Result<EnergyVadContext> create_energy_vad_context() const;
 
   private:
     // Constructor: creates an empty Processor wrapper for internal use when creation fails
@@ -788,7 +1009,12 @@ class VadContext
     ::AicVadContext* context_;
 
   public:
-    // Destructor: releases the underlying SDK VAD context handle if one is owned
+    /**
+     * Releases this context handle without destroying the backing VAD.
+     *
+     * @warning Do not use this handle concurrently with destruction or move assignment.
+     *          Calls using other context handles may continue.
+     */
     ~VadContext()
     {
         if (context_)
@@ -935,8 +1161,9 @@ class VadContext
      * This function can be called from any thread.
      *
      * @param parameter Parameter to modify.
-     * @param value New parameter value.
-     * @return ErrorCode::Success on success, or an error code on failure.
+     * @param value New parameter value. See VadParameter for ranges.
+     * @return ErrorCode::Success on success, or ErrorCode::ParameterOutOfRange for a value
+     *         outside the valid range.
      *
      * @note Thread-safe and real-time safe.
      */
@@ -977,6 +1204,15 @@ class VadContext
      * In-place updates are only supported when both the original key and the new token are
      * JWTs. If either side is not a JWT, returns ErrorCode::TokenUpdateUnsupported and the
      * existing token stays in use.
+     *
+     * On any error, the active token and telemetry session remain unchanged, with no backoff
+     * or interruption to processing. An unparseable token returns ErrorCode::LicenseFormatInvalid.
+     *
+     * Success applies the token immediately after local format validation; it does not mean
+     * the backend has accepted it. If the backend rejects it (for example, expired or revoked),
+     * the SDK retries with backoff without restoring the old token. Audio processing is
+     * eventually disabled if no accepted token arrives in time. Supplying a known-good token
+     * during that window recovers the session.
      *
      * @param token New JWT token string.
      * @return ErrorCode::Success on success, or an error code on failure.
@@ -1022,7 +1258,11 @@ class Vad
     ::AicVad* vad_;
 
   public:
-    // Destructor: releases the underlying SDK VAD handle if one is owned
+    /**
+     * Releases the owned VAD handle.
+     *
+     * @warning Do not use this object from another thread during destruction or move assignment.
+     */
     ~Vad()
     {
         if (vad_)
@@ -1072,7 +1312,12 @@ class Vad
      * @return Result containing the Vad and an ErrorCode. Returns
      *         ErrorCode::ModelTypeUnsupported if the model is not a VAD model.
      *
-     * @warning Not thread-safe. Ensure no other threads are using the VAD handle.
+     * License errors include ErrorCode::LicenseFormatInvalid,
+     * ErrorCode::LicenseVersionUnsupported and ErrorCode::LicenseExpired.
+     *
+     * @note Reusing a Model creates independent instances sharing its underlying data.
+     *       The Model handle may be destroyed first, but its backing buffer/file must remain
+     *       valid and unchanged for the lifetime of the Vad.
      */
     static Result<Vad> create(const Model&       model,
                               const std::string& license_key,
@@ -1091,11 +1336,11 @@ class Vad
      * @param variable_block_size If true, permits shorter calls at the cost of extra buffering
      *                            before new predictions are published; calls larger than
      *                            block_size are always rejected.
-     * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
+     * @return ErrorCode::Success if configuration is accepted, or
+     *         ErrorCode::AudioConfigUnsupported if the configuration is unsupported.
      *
-     * @note The VAD is mono only. Downmix multi-channel audio before processing, or create one
-     *       Vad per channel.
-     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
+     * @warning Allocates memory; not real-time safe. Do not use the VAD object from
+     *          another thread during initialization.
      */
     ErrorCode initialize(uint32_t sample_rate, size_t block_size, bool variable_block_size)
     {
@@ -1106,15 +1351,21 @@ class Vad
     /**
      * Processes the provided mono audio block and updates the VAD prediction.
      *
-     * The input audio is read-only and is not modified.
+     * The input audio is read-only and is not modified. When also enhancing, pass original
+     * input here before Processor::process. Enhanced output differs from the signal the VAD
+     * model expects and adds the processor's audio delay to the VAD's prediction delay.
      *
-     * @param audio Pointer to a mono audio block of audio_len samples.
+     * @param audio Non-null pointer to a mono audio block of audio_len samples.
      * @param audio_len Number of samples in the block. Must match the block size from
      *                  initialization, or be less than or equal to it if variable_block_size
      *                  was enabled.
-     * @return ErrorCode::Success on success, or an error code on failure.
+     * @return ErrorCode::Success on success; ErrorCode::NotInitialized if initialize was not
+     *         called, ErrorCode::AudioConfigMismatch for a block size mismatch, or
+     *         ErrorCode::NullPointer for a null audio pointer.
+     *         ErrorCode::ProcessingNotAllowed indicates authorization or usage-reporting failure.
      *
-     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     * @warning Real-time safe, but do not use the VAD object from another thread during
+     *          this call.
      */
     ErrorCode process(const float* audio, size_t audio_len)
     {
@@ -1130,6 +1381,9 @@ class Vad
      * A telemetry session is stopped automatically when the Vad is destroyed. Use this function
      * in lifecycle management events where destruction may be delayed, for example when this SDK
      * is wrapped by a language with automatic memory management.
+     *
+     * Blocks until the telemetry session is terminated unless another session is still alive.
+     * In that case, returns early and termination happens asynchronously.
      *
      * @return ErrorCode::Success if termination was requested successfully, or an error code on
      *         failure.
@@ -1147,14 +1401,14 @@ class Vad
      * Creates a VAD context handle for thread-safe control APIs.
      *
      * The voice activity detection works automatically as Vad::process processes audio.
+     * All contexts created from this Vad share the same VAD state and parameters.
      *
      * **Important:** If the backing Vad is destroyed, the context will stop producing new data.
      * It is safe to destroy the Vad without destroying the context.
      *
      * @return Result containing the VadContext and an ErrorCode.
      *
-     * @note Thread-safe and real-time safe.
-     * @note It is safe for the VAD to be in use by other threads.
+     * @warning Context creation is not guaranteed real-time safe.
      */
     Result<VadContext> create_context() const;
 
@@ -1186,7 +1440,11 @@ class Collector
     ::AicCollector* collector_;
 
   public:
-    // Destructor: releases the underlying SDK collector handle if one is owned
+    /**
+     * Releases the owned collector handle.
+     *
+     * @warning Do not use this object from another thread during destruction or move assignment.
+     */
     ~Collector()
     {
         if (collector_)
@@ -1236,11 +1494,11 @@ class Collector
      *                   is true).
      * @param variable_block_size If true, permits shorter calls at the cost of added delay;
      *                            calls larger than block_size are always rejected.
-     * @return ErrorCode::Success if configuration is accepted, or an error code on failure.
+     * @return ErrorCode::Success if configuration is accepted, or
+     *         ErrorCode::AudioConfigUnsupported if the configuration is unsupported.
      *
-     * @note The collector is mono only. Downmix multi-channel audio before buffering, or create
-     *       one collector / analyzer pair per channel.
-     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
+     * @warning Allocates memory; not real-time safe. Do not use the collector object from
+     *          another thread during initialization.
      */
     ErrorCode initialize(uint32_t sample_rate, size_t block_size, bool variable_block_size)
     {
@@ -1254,13 +1512,16 @@ class Collector
      *
      * The input audio is read-only and is not modified.
      *
-     * @param audio Pointer to a mono audio block of audio_len samples.
+     * @param audio Non-null pointer to a mono audio block of audio_len samples.
      * @param audio_len Number of samples in the block. Must match the block size from
      *                  initialization, or be less than or equal to it if variable_block_size
      *                  was enabled.
-     * @return ErrorCode::Success on success, or an error code on failure.
+     * @return ErrorCode::Success on success; ErrorCode::NotInitialized if initialize was not
+     *         called, ErrorCode::AudioConfigMismatch for a block size mismatch, or
+     *         ErrorCode::NullPointer for a null audio pointer.
      *
-     * @warning Real-time safe but not thread-safe; do not call from multiple threads.
+     * @warning Real-time safe, but do not use the collector object from another thread during
+     *          this call.
      */
     ErrorCode buffer(const float* audio, size_t audio_len)
     {
@@ -1296,7 +1557,11 @@ class Analyzer
     ::AicAnalyzer* analyzer_;
 
   public:
-    // Destructor: releases the underlying SDK analyzer handle if one is owned
+    /**
+     * Releases the owned analyzer handle.
+     *
+     * @warning Do not use this object from another thread during destruction or move assignment.
+     */
     ~Analyzer()
     {
         if (analyzer_)
@@ -1358,9 +1623,11 @@ class Analyzer
      * is padded with silence.
      *
      * @return Result containing the AnalysisResult scores and an ErrorCode.
+     *         ErrorCode::ProcessingNotAllowed indicates authorization or usage-reporting failure.
      *
      * @warning Not real-time safe and not thread-safe; do not call from real-time audio threads
-     *          or from multiple threads.
+     *          or use this analyzer from any other thread during this call.
+     *          Collector::buffer may run concurrently on the paired collector.
      */
     Result<AnalysisResult> analyze_buffered()
     {
@@ -1389,6 +1656,9 @@ class Analyzer
      * function in lifecycle management events where destruction may be delayed, for example when
      * this SDK is wrapped by a language with automatic memory management.
      *
+     * Blocks until the telemetry session is terminated unless another session is still alive.
+     * In that case, returns early and termination happens asynchronously.
+     *
      * @return ErrorCode::Success if termination was requested successfully, or an error code on
      *         failure.
      *
@@ -1410,6 +1680,15 @@ class Analyzer
      * In-place updates are only supported when both the original key and the new token are JWTs.
      * If either side is not a JWT, returns ErrorCode::TokenUpdateUnsupported and the existing
      * token stays in use.
+     *
+     * On any error, the active token and telemetry session remain unchanged, with no backoff
+     * or interruption to processing. An unparseable token returns ErrorCode::LicenseFormatInvalid.
+     *
+     * Success applies the token immediately after local format validation; it does not mean
+     * the backend has accepted it. If the backend rejects it (for example, expired or revoked),
+     * the SDK retries with backoff without restoring the old token. Analysis calls may be
+     * rejected if no accepted token arrives in time. Supplying a known-good token during that
+     * window recovers the session.
      *
      * @param token New JWT token string.
      * @return ErrorCode::Success on success, or an error code on failure.
@@ -1459,7 +1738,13 @@ struct AnalyzerPair
      * @return Result containing the AnalyzerPair and an ErrorCode. Returns
      *         ErrorCode::ModelTypeUnsupported if the model is not an analysis model.
      *
-     * @warning Allocates memory and is not thread-safe. Avoid calling from real-time audio threads.
+     * License errors include ErrorCode::LicenseFormatInvalid,
+     * ErrorCode::LicenseVersionUnsupported and ErrorCode::LicenseExpired.
+     *
+     * @note Reusing a Model creates independent pairs. The Analyzer shares the model data;
+     *       the Collector holds no reference to the Model. The Model handle may be destroyed
+     *       first, but its backing buffer/file must outlive the pair and remain unchanged.
+     * @warning Allocates memory. Avoid calling from real-time audio threads.
      */
     static Result<AnalyzerPair> create(const Model& model, const std::string& license_key);
 };
@@ -1473,7 +1758,8 @@ struct AnalyzerPair
  *
  * @return SDK version string (e.g., "1.2.3").
  *
- * @note Thread-safe and real-time safe.
+ * @note Thread-safe. Returns an owned copy of the C SDK version string.
+ * @warning May allocate memory; not guaranteed real-time safe.
  */
 inline std::string get_sdk_version()
 {

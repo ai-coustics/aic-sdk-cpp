@@ -19,7 +19,7 @@ set(AIC_SDK_ALLOW_DOWNLOAD ON CACHE BOOL "Allow C SDK download at configure time
 FetchContent_Declare(
     aic_sdk
     GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-    GIT_TAG        0.24.0
+    GIT_TAG        0.25.0
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(aic_sdk)
@@ -290,7 +290,8 @@ The context may outlive the processor, and destroying it does not destroy the pr
 
 ### Voice Activity Detection (VAD)
 
-Voice activity detection runs on its own object, `aic::Vad`, and needs a dedicated VAD model.
+Standalone voice activity detection uses `aic::Vad` and a dedicated VAD model.
+Energy-based detection is also available from an enhancement processor (see below).
 Enhancement models are rejected by `Vad::create` with `ErrorCode::ModelTypeUnsupported`.
 
 #### Creating and Initializing a VAD
@@ -337,7 +338,7 @@ size_t prediction_delay = vad_context.get_prediction_delay();
 std::cout << "VAD prediction delay: " << prediction_delay << " samples\n";
 ```
 
-`Sensitivity` is always a probability threshold between 0.0 and 1.0: the VAD model outputs a speech
+For standalone `Vad`, `Sensitivity` is a probability threshold between 0.0 and 1.0: the VAD model outputs a speech
 probability per block, and a value above the threshold triggers a speech detected decision.
 
 #### Running the VAD
@@ -371,7 +372,7 @@ vad_context.reset();
 The `Vad`, its context and the model can be destroyed in any order. The context may outlive the
 VAD, it just stops receiving new data.
 
-### Combining Enhancement and VAD
+### Combining Enhancement and Standalone VAD
 
 Enhancement and VAD are independent objects, each with its own model. Run them side by side and
 **feed the VAD the original input audio, not the processor's output.**
@@ -405,6 +406,43 @@ Avoid chaining the two, meaning feeding the processor's output into the VAD. Enh
 designed to change the signal, so the VAD would be detecting speech in audio that no longer
 matches what its model expects, and the prediction would then lag the original input by
 `audio_delay + prediction_delay`.
+
+### Energy-Based Voice Activity Detection
+
+An enhancement processor can detect speech using the energy of its enhanced
+signal before output mixing. No separate VAD model or processing call is needed.
+
+```cpp
+auto result = processor.create_energy_vad_context();
+if (!result.ok()) {
+    // Includes ModelTypeUnsupported for processors without energy VAD support.
+    return;
+}
+auto energy_vad = result.take();
+energy_vad.set_parameter(aic::VadParameter::Sensitivity, 8.0f);
+energy_vad.set_parameter(aic::VadParameter::SpeechHoldDuration, 0.2f);
+energy_vad.set_parameter(aic::VadParameter::MinimumSpeechDuration, 0.1f);
+
+// Call for each mono block after initializing the processor.
+processor.process(audio.data(), audio.size());
+bool speech = energy_vad.is_speech_detected();
+size_t prediction_delay = energy_vad.get_prediction_delay();
+```
+
+Energy VAD sensitivity ranges from **1.0 to 15.0**. Its energy threshold is `10 ^ (-sensitivity)`,
+so higher values detect lower-energy speech. The prediction delay equals the processor's audio
+delay; speech hold and minimum speech duration additionally affect decision timing.
+
+Creating a context keeps enhancement inference active during bypass and at zero enhancement
+level for the processor's remaining lifetime, even after all energy VAD contexts are destroyed.
+Contexts from the same processor share state and parameters. Their control and query methods
+are thread-safe and real-time safe; creating or destroying a context is not real-time safe.
+Do not use the processor concurrently while creating an energy VAD context.
+
+`energy_vad.reset()` clears the speech decision and retains parameters without resetting the
+processor. Resetting the processor also resets energy VAD. A context can safely outlive the
+processor, but its prediction stops updating. Token refresh and session termination use the
+backing processor's APIs.
 
 ### Working with the Analyzer
 
@@ -554,8 +592,8 @@ Run the analyzer example with a dedicated analysis model:
 ```
 
 **Note:** Each example rejects the other examples' model types with
-`ErrorCode::ModelTypeUnsupported`. Voice activity detection requires a dedicated VAD model and
-analysis a dedicated analysis model; neither can run on an enhancement model.
+`ErrorCode::ModelTypeUnsupported`. The standalone VAD example requires a dedicated VAD model, and
+analysis requires a dedicated analysis model. Energy VAD uses an enhancement processor.
 
 ## Compatibility
 
