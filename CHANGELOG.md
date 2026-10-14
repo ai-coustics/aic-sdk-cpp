@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## 0.25.0
+## 0.25.0 - 2026-09-29
 
 ### New Features
 

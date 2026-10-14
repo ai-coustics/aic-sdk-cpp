@@ -20,7 +20,7 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           awk -v ver="$TAG" '
-            $0 ~ "^## " ver " - " { flag=1; next }
+            /^## / && $2 == ver { flag=1; next }
             flag && /^## / { flag=0 }
             flag { print }
           ' CHANGELOG.md > notes.md
