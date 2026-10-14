@@ -3,6 +3,23 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## 0.25.1 - 2026-10-14
+
+### Improvements
+
+- Improved the robustness of the `interfering_speech` dimension in Tyto 1.1.
+
+### Bug Fixes
+
+- Fixed a click and brief drop in audio volume with Quail Voice Focus models when speech is first
+  detected after processing starts or the processor is reset.
+- Quail Voice Focus models now apply the requested enhancement level
+  (`ProcessorParameter::EnhancementLevel`) even before speech is first detected. Previously, all
+  nonzero enhancement levels produced the same audio during this initial period.
+- Fixed `Processor::terminate_session`, `Vad::terminate_session` and `Analyzer::terminate_session`
+  blocking until sessions created after the call ended. Terminating the last session now waits
+  only for the final usage reports of sessions that were already terminated.
+
 ## 0.25.0 - 2026-09-29
 
 ### New Features
