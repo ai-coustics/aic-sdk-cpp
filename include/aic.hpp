@@ -127,20 +127,20 @@ struct AnalysisResult
 {
     /// Headline audio score. Predicts likelihood of failure of downstream models including
     /// speech-to-text, voice activity detection, turn-taking or speech-to-speech models.
-    float risk_score;
+    float risk_score{};
     /// Measure of speaker distance and reverberance.
-    float speaker_reverb;
+    float speaker_reverb{};
     /// Measure of speaker loudness.
-    float speaker_loudness;
+    float speaker_loudness{};
     /// Measure of interfering speech from sources other than the main speaker.
-    float interfering_speech;
+    float interfering_speech{};
     /// Measure of ambient or environmental noise.
-    float noise;
+    float noise{};
     /// Measure of artifacts introduced by lossy speech codecs (low bitrate, narrowband codecs).
-    float codec_degradation;
+    float codec_degradation{};
     /// Measure of audio dropouts or discontinuities (packet loss, frame erasure, jitter, CPU
     /// overload).
-    float packet_loss;
+    float packet_loss{};
 };
 
 /**
@@ -247,7 +247,7 @@ enum class VadParameter : int
 class Model
 {
   private:
-    ::AicModel* model_;
+    ::AicModel* model_{};
 
   public:
     /**
@@ -471,7 +471,7 @@ struct ProcessorConfig
 class ProcessorContext
 {
   private:
-    ::AicProcessorContext* context_;
+    ::AicProcessorContext* context_{};
 
   public:
     /**
@@ -659,7 +659,7 @@ class ProcessorContext
 class EnergyVadContext
 {
   private:
-    ::AicEnergyVadContext* context_;
+    ::AicEnergyVadContext* context_{};
 
   public:
     /**
@@ -823,7 +823,7 @@ class EnergyVadContext
 class Processor
 {
   private:
-    ::AicProcessor* processor_;
+    ::AicProcessor* processor_{};
 
   public:
     /**
@@ -1006,7 +1006,7 @@ class Processor
 class VadContext
 {
   private:
-    ::AicVadContext* context_;
+    ::AicVadContext* context_{};
 
   public:
     /**
@@ -1255,7 +1255,7 @@ class VadContext
 class Vad
 {
   private:
-    ::AicVad* vad_;
+    ::AicVad* vad_{};
 
   public:
     /**
@@ -1437,7 +1437,7 @@ class Vad
 class Collector
 {
   private:
-    ::AicCollector* collector_;
+    ::AicCollector* collector_{};
 
   public:
     /**
@@ -1554,7 +1554,7 @@ class Collector
 class Analyzer
 {
   private:
-    ::AicAnalyzer* analyzer_;
+    ::AicAnalyzer* analyzer_{};
 
   public:
     /**
