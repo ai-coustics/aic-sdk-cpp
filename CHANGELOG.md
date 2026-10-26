@@ -3,6 +3,12 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## 0.25.2 - 2026-10-26
+
+### Bug Fixes
+
+- Updated internal dependencies to address the recently disclosed eMudhra certificate vulnerability.
+
 ## 0.25.1 - 2026-10-14
 
 ### Improvements
