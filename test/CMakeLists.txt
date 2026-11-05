@@ -22,13 +22,13 @@ set(AIC_SDK_CPP_PATH "../" CACHE PATH "Path to local aic-sdk-cpp directory")
 # The model is downloaded at configure time. AIC_TEST_MODEL_ID also selects the fixture directory
 # holding the reference output, and AIC_TEST_MODEL_VERSION must match the model version reported by
 # aic_get_compatible_model_version. Set AIC_TEST_MODEL to use a local model file instead.
-set(AIC_TEST_MODEL_ID "quail-vf-2.2-s-16khz" CACHE STRING "Model used by the end-to-end test")
-set(AIC_TEST_MODEL_VERSION "v7" CACHE STRING "Model version compatible with this SDK release")
+set(AIC_TEST_MODEL_ID "quail-vf-2.3-s-16khz" CACHE STRING "Model used by the end-to-end test")
+set(AIC_TEST_MODEL_VERSION "v8" CACHE STRING "Model version compatible with this SDK release")
 set(AIC_TEST_MODEL "" CACHE FILEPATH "Local model file to use instead of downloading")
 
 # Same idea as AIC_TEST_MODEL_ID/AIC_TEST_MODEL, but for the standalone VAD end-to-end test. Shares
 # AIC_TEST_MODEL_VERSION since both models must be compatible with the same SDK release.
-set(AIC_TEST_VAD_MODEL_ID "vad-2.1-xxs-16khz" CACHE STRING "Model used by the end-to-end VAD test")
+set(AIC_TEST_VAD_MODEL_ID "vad-ms-2.1-xxs-16khz" CACHE STRING "Model used by the end-to-end VAD test")
 set(AIC_TEST_VAD_MODEL "" CACHE FILEPATH "Local VAD model file to use instead of downloading")
 
 set(AIC_ARTIFACTS_URL "https://artifacts.ai-coustics.io/")
@@ -90,7 +90,7 @@ else()
     FetchContent_Declare(
         aic_sdk
         GIT_REPOSITORY https://github.com/ai-coustics/aic-sdk-cpp.git
-        GIT_TAG        0.25.2
+        GIT_TAG        0.26.0
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(aic_sdk)
