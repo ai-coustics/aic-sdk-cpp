@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## 0.26.0
+## 0.26.0 - 2026-11-05
 
 ### Breaking Changes
 
